@@ -9,6 +9,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// MySQL 连接配置 - 直接在代码中配置
+const MYSQL_CONFIG = {
+  hostname: 'rm-2zeci3z6ogyl025l59o.mysql.rds.aliyuncs.com',
+  port: 3306,
+  username: 'chip',
+  password: 'chip@2024',
+  db: 'chat_history'
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -23,14 +32,8 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Initialize MySQL client
-    const mysqlClient = await new Client().connect({
-      hostname: Deno.env.get('MYSQL_HOST')!,
-      port: parseInt(Deno.env.get('MYSQL_PORT') || '3306'),
-      username: Deno.env.get('MYSQL_USER')!,
-      password: Deno.env.get('MYSQL_PASSWORD')!,
-      db: Deno.env.get('MYSQL_DATABASE')!,
-    });
+    // Initialize MySQL client with hardcoded config
+    const mysqlClient = await new Client().connect(MYSQL_CONFIG);
 
     let result = {};
 

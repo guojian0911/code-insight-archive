@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Code, MessageSquare, Bot, Calendar } from 'lucide-react';
+import { Code, MessageSquare, Bot, Database } from 'lucide-react';
 
 interface MySQLProject {
   id: number;
@@ -77,12 +77,12 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats, allProjects }) => {
       <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg hover:shadow-xl transition-shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center">
-            <Calendar className="h-4 w-4 mr-2" />
-            本月活跃
+            <Database className="h-4 w-4 mr-2" />
+            总消息数
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold">0</div>
+          <div className="text-3xl font-bold">{stats.messages}</div>
         </CardContent>
       </Card>
     </div>

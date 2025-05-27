@@ -39,7 +39,7 @@ serve(async (req) => {
     mysqlClient = new Client();
     await mysqlClient.connect({
       ...MYSQL_CONFIG,
-      timeout: 10000,
+      timeout: 15000,
     });
     console.log('MySQL connected successfully');
 
@@ -86,7 +86,14 @@ serve(async (req) => {
       case 'migrate_all':
         console.log('Starting complete migration...');
         
-        // Get total counts first
+        // 清理现有数据，避免重复
+        console.log('Cleaning existing data...');
+        await supabase.from('messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('conversations').delete().neq('id', '');
+        await supabase.from('projects').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        console.log('Cleanup completed');
+        
+        // Get total counts
         const totalProjectsResult = await mysqlClient.query('SELECT COUNT(*) as count FROM projects');
         const totalConversationsResult = await mysqlClient.query('SELECT COUNT(*) as count FROM conversations');
         const totalMessagesResult = await mysqlClient.query('SELECT COUNT(*) as count FROM messages');
@@ -97,113 +104,139 @@ serve(async (req) => {
         
         console.log(`Total to migrate: ${totalProjects} projects, ${totalConversations} conversations, ${totalMessages} messages`);
 
-        // Migrate projects
+        // Migrate projects in small batches
         let projectOffset = 0;
         let totalProjectsMigrated = 0;
-        const projectBatchSize = 10;
+        const projectBatchSize = 5;
         
         while (projectOffset < totalProjects) {
           const projects = await mysqlClient.query('SELECT * FROM projects LIMIT ? OFFSET ?', [projectBatchSize, projectOffset]);
           if (projects.length === 0) break;
 
-          const projectsData = projects.map((project: any) => ({
-            id: crypto.randomUUID(), // 总是生成新的UUID
-            workspace_id: String(project.workspace_id || ''),
-            platform: String(project.platform || ''),
-            name: String(project.name || ''),
-            path: String(project.path || ''),
-            created_at: project.created_at || new Date().toISOString(),
-            updated_at: project.updated_at || new Date().toISOString()
-          }));
+          for (const project of projects) {
+            try {
+              const projectData = {
+                id: crypto.randomUUID(),
+                workspace_id: String(project.workspace_id || ''),
+                platform: String(project.platform || ''),
+                name: String(project.name || ''),
+                path: String(project.path || ''),
+                created_at: project.created_at || new Date().toISOString(),
+                updated_at: project.updated_at || new Date().toISOString()
+              };
 
-          const { error: pError } = await supabase.from('projects').insert(projectsData);
-          if (pError) {
-            console.error('Project insertion error:', pError);
-            throw pError;
+              const { error: pError } = await supabase.from('projects').insert([projectData]);
+              if (pError) {
+                console.error('Project insertion error for project:', project, 'Error:', pError);
+                // 继续处理下一个项目，不中断整个流程
+              } else {
+                totalProjectsMigrated++;
+              }
+            } catch (err) {
+              console.error('Error processing project:', project, 'Error:', err);
+            }
+            
+            // 每个项目之间小延迟
+            await new Promise(resolve => setTimeout(resolve, 20));
           }
           
-          totalProjectsMigrated += projects.length;
           projectOffset += projectBatchSize;
-          console.log(`Migrated ${totalProjectsMigrated}/${totalProjects} projects`);
+          console.log(`Processed ${projectOffset}/${totalProjects} projects, migrated: ${totalProjectsMigrated}`);
           
-          // 小延迟
-          await new Promise(resolve => setTimeout(resolve, 50));
+          // 批次之间延迟
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         // Migrate conversations
         let conversationOffset = 0;
         let totalConversationsMigrated = 0;
-        const conversationBatchSize = 15;
+        const conversationBatchSize = 10;
         
         while (conversationOffset < totalConversations) {
           const conversations = await mysqlClient.query('SELECT * FROM conversations LIMIT ? OFFSET ?', [conversationBatchSize, conversationOffset]);
           if (conversations.length === 0) break;
 
-          const conversationsData = conversations.map((conv: any) => ({
-            id: String(conv.id || crypto.randomUUID()), // 保持原ID作为字符串
-            workspace_id: String(conv.workspace_id || ''),
-            project_name: String(conv.project_name || ''),
-            name: String(conv.name || ''),
-            created_at: conv.created_at,
-            last_interacted_at: conv.last_interacted_at,
-            message_count: conv.message_count || 0,
-            created_timestamp: conv.created_timestamp || new Date().toISOString(),
-            updated_timestamp: conv.updated_timestamp || new Date().toISOString()
-          }));
+          for (const conv of conversations) {
+            try {
+              const convData = {
+                id: String(conv.id || crypto.randomUUID()),
+                workspace_id: String(conv.workspace_id || ''),
+                project_name: String(conv.project_name || ''),
+                name: String(conv.name || ''),
+                created_at: conv.created_at,
+                last_interacted_at: conv.last_interacted_at,
+                message_count: conv.message_count || 0,
+                created_timestamp: conv.created_timestamp || new Date().toISOString(),
+                updated_timestamp: conv.updated_timestamp || new Date().toISOString()
+              };
 
-          const { error: cError } = await supabase.from('conversations').insert(conversationsData);
-          if (cError) {
-            console.error('Conversation insertion error:', cError);
-            throw cError;
+              const { error: cError } = await supabase.from('conversations').insert([convData]);
+              if (cError) {
+                console.error('Conversation insertion error for conv:', conv.id, 'Error:', cError);
+              } else {
+                totalConversationsMigrated++;
+              }
+            } catch (err) {
+              console.error('Error processing conversation:', conv.id, 'Error:', err);
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 20));
           }
           
-          totalConversationsMigrated += conversations.length;
           conversationOffset += conversationBatchSize;
-          console.log(`Migrated ${totalConversationsMigrated}/${totalConversations} conversations`);
+          console.log(`Processed ${conversationOffset}/${totalConversations} conversations, migrated: ${totalConversationsMigrated}`);
           
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         // Migrate messages in very small batches
         let messageOffset = 0;
         let totalMessagesMigrated = 0;
-        const messageBatchSize = 50;
+        const messageBatchSize = 20;
         
         while (messageOffset < totalMessages) {
           const messages = await mysqlClient.query('SELECT * FROM messages LIMIT ? OFFSET ?', [messageBatchSize, messageOffset]);
           if (messages.length === 0) break;
 
-          const messagesData = messages.map((msg: any) => ({
-            id: crypto.randomUUID(), // 总是生成新的UUID
-            conversation_id: String(msg.conversation_id || ''),
-            request_id: String(msg.request_id || ''),
-            role: String(msg.role || ''),
-            content: String(msg.content || ''),
-            timestamp: msg.timestamp,
-            message_order: msg.message_order || 0,
-            workspace_files: msg.workspace_files,
-            created_at: msg.created_at || new Date().toISOString()
-          }));
+          for (const msg of messages) {
+            try {
+              const msgData = {
+                id: crypto.randomUUID(),
+                conversation_id: String(msg.conversation_id || ''),
+                request_id: String(msg.request_id || ''),
+                role: String(msg.role || ''),
+                content: String(msg.content || '').substring(0, 10000), // 限制长度
+                timestamp: msg.timestamp,
+                message_order: msg.message_order || 0,
+                workspace_files: msg.workspace_files,
+                created_at: msg.created_at || new Date().toISOString()
+              };
 
-          const { error: mError } = await supabase.from('messages').insert(messagesData);
-          if (mError) {
-            console.error('Message insertion error:', mError);
-            throw mError;
+              const { error: mError } = await supabase.from('messages').insert([msgData]);
+              if (mError) {
+                console.error('Message insertion error for msg:', msg.id, 'Error:', mError);
+              } else {
+                totalMessagesMigrated++;
+              }
+            } catch (err) {
+              console.error('Error processing message:', msg.id, 'Error:', err);
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 10));
           }
           
-          totalMessagesMigrated += messages.length;
           messageOffset += messageBatchSize;
-          console.log(`Migrated ${totalMessagesMigrated}/${totalMessages} messages`);
+          console.log(`Processed ${messageOffset}/${totalMessages} messages, migrated: ${totalMessagesMigrated}`);
           
-          // 增加延迟防止超时
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // 每批消息后较长延迟
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
 
         result = {
           projects: totalProjectsMigrated,
           conversations: totalConversationsMigrated,
           messages: totalMessagesMigrated,
-          message: 'All data migrated successfully'
+          message: 'Migration completed with error handling'
         };
         break;
 

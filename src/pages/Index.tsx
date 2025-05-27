@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Calendar, MessageSquare, Code, Bot } from 'lucide-react';
+import { Search, Filter, Calendar, MessageSquare, Code, Bot, Database } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
+import { useNavigate } from 'react-router-dom';
 import ProjectList from '@/components/ProjectList';
 import ConversationList from '@/components/ConversationList';
 import MessageDetail from '@/components/MessageDetail';
@@ -21,6 +22,7 @@ const Index = () => {
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadProjects();
@@ -147,12 +149,23 @@ const Index = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            AI编程助手聊天记录管理平台
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            统一管理Cursor、AugmentCode、Cline等AI编程工具的对话历史
-          </p>
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+                AI编程助手聊天记录管理平台
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                统一管理Cursor、AugmentCode、Cline等AI编程工具的对话历史
+              </p>
+            </div>
+            <Button 
+              onClick={() => navigate('/migration')}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <Database className="h-4 w-4 mr-2" />
+              数据库迁移
+            </Button>
+          </div>
         </div>
 
         {/* Search Bar */}

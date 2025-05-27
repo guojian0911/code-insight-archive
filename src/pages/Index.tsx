@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { Filter, Database, FolderOpen } from 'lucide-react';
+import { Database, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -235,15 +236,6 @@ const Index = () => {
     );
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('zh-CN');
-  };
-
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  };
-
   const formatConversationForDetail = () => {
     if (!selectedConversation || !messages.length) return null;
     
@@ -277,15 +269,6 @@ const Index = () => {
         timestamp: msg.timestamp
       }))
     };
-  };
-
-  const getToolStats = (projects: MySQLProject[]) => {
-    const toolCounts: Record<string, number> = {};
-    projects.forEach(project => {
-      const tool = project.platform || 'unknown';
-      toolCounts[tool] = (toolCounts[tool] || 0) + 1;
-    });
-    return Object.keys(toolCounts).length;
   };
 
   if (loading && !allProjects.length) {

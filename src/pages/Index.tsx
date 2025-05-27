@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, Calendar, MessageSquare, Code, Bot, Database } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -49,8 +49,9 @@ interface MySQLStats {
 }
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<'projects' | 'conversations' | 'messages' | 'search'>('projects');
-  const [projects, setProjects] = useState<MySQLProject[]>([]);
+  const [currentView, setCurrentView] = useState<'projects' | 'conversations' | 'messages'>('projects');
+  const [allProjects, setAllProjects] = useState<MySQLProject[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<MySQLProject[]>([]);
   const [conversations, setConversations] = useState<MySQLConversation[]>([]);
   const [messages, setMessages] = useState<MySQLMessage[]>([]);
   const [selectedProject, setSelectedProject] = useState<MySQLProject | null>(null);
@@ -58,13 +59,32 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<MySQLStats | null>(null);
+  const [statsLoaded, setStatsLoaded] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadStats();
-    loadProjects();
+    loadInitialData();
   }, []);
+
+  // Frontend search implementation
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return allProjects;
+    }
+    
+    const query = searchQuery.toLowerCase();
+    return allProjects.filter(project => 
+      project.name.toLowerCase().includes(query) ||
+      project.platform.toLowerCase().includes(query) ||
+      project.path.toLowerCase().includes(query) ||
+      project.workspace_id.toLowerCase().includes(query)
+    );
+  }, [allProjects, searchQuery]);
+
+  useEffect(() => {
+    setFilteredProjects(searchResults);
+  }, [searchResults]);
 
   const queryMySQL = async (action: string, params: any = {}) => {
     const { data, error } = await supabase.functions.invoke('mysql-query', {
@@ -75,27 +95,33 @@ const Index = () => {
     return data;
   };
 
-  const loadStats = async () => {
-    try {
-      const data = await queryMySQL('get_stats');
-      setStats(data);
-    } catch (error) {
-      console.error('Failed to load stats:', error);
-      toast({
-        title: "获取统计失败",
-        description: "无法获取数据库统计信息",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const loadProjects = async () => {
+  const loadInitialData = async () => {
     try {
       setLoading(true);
-      const data = await queryMySQL('get_projects', { limit: 50, offset: 0 });
-      setProjects(data.data);
+      
+      // Load projects first
+      const projectsData = await queryMySQL('get_projects', { limit: 100, offset: 0 });
+      setAllProjects(projectsData.data);
+      setFilteredProjects(projectsData.data);
+      
+      // Load stats only once if not already loaded
+      if (!statsLoaded) {
+        try {
+          const statsData = await queryMySQL('get_stats');
+          setStats(statsData);
+          setStatsLoaded(true);
+        } catch (statsError) {
+          console.error('Failed to load stats:', statsError);
+          // Don't block the main UI if stats fail
+          toast({
+            title: "统计信息加载失败",
+            description: "项目数据已加载，但统计信息暂时不可用",
+            variant: "destructive",
+          });
+        }
+      }
     } catch (error) {
-      console.error('Failed to load projects:', error);
+      console.error('Failed to load initial data:', error);
       toast({
         title: "加载失败",
         description: "无法加载项目数据，请稍后重试",
@@ -109,7 +135,7 @@ const Index = () => {
   const handleProjectSelect = async (projectName: string) => {
     try {
       setLoading(true);
-      const project = projects.find(p => p.name === projectName);
+      const project = allProjects.find(p => p.name === projectName);
       if (project) {
         setSelectedProject(project);
         const data = await queryMySQL('get_conversations', { 
@@ -158,32 +184,8 @@ const Index = () => {
     }
   };
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    if (query.trim()) {
-      try {
-        setLoading(true);
-        const data = await queryMySQL('search', {
-          searchTerm: query,
-          searchType: 'projects',
-          limit: 50
-        });
-        setProjects(data.data);
-        setCurrentView('search');
-      } catch (error) {
-        console.error('Search failed:', error);
-        toast({
-          title: "搜索失败",
-          description: "搜索过程中出现错误",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      setCurrentView('projects');
-      loadProjects();
-    }
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
 
   const handleBackToProjects = () => {
@@ -192,7 +194,7 @@ const Index = () => {
     setSelectedConversation(null);
     setConversations([]);
     setMessages([]);
-    loadProjects();
+    setSearchQuery('');
   };
 
   const handleBackToConversations = () => {
@@ -240,11 +242,9 @@ const Index = () => {
     return text.substring(0, maxLength) + '...';
   };
 
-  // 转换MySQL消息格式为MessageDetail组件期望的格式
   const formatConversationForDetail = () => {
     if (!selectedConversation || !messages.length) return null;
     
-    // Map platform names to tool config keys
     const platformToTool = (platform: string): 'cursor' | 'augmentcode' | 'cline' | 'roocode' => {
       const normalizedPlatform = platform.toLowerCase();
       switch (normalizedPlatform) {
@@ -259,7 +259,7 @@ const Index = () => {
         case 'roocode':
           return 'roocode';
         default:
-          return 'cursor'; // fallback to cursor
+          return 'cursor';
       }
     };
     
@@ -277,7 +277,7 @@ const Index = () => {
     };
   };
 
-  if (loading && !projects.length) {
+  if (loading && !allProjects.length) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
@@ -312,26 +312,33 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Search Bar */}
-        <Card className="mb-6 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="搜索项目、对话或消息内容..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10 h-12 text-base"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Search Bar - Only show on projects view */}
+        {currentView === 'projects' && (
+          <Card className="mb-6 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="搜索项目名称、平台、路径..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="pl-10 h-12 text-base"
+                />
+                {searchQuery && (
+                  <div className="absolute right-3 top-3 text-sm text-muted-foreground">
+                    {filteredProjects.length} 个结果
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Breadcrumb */}
-        {currentView !== 'projects' && currentView !== 'search' && renderBreadcrumb()}
+        {currentView !== 'projects' && renderBreadcrumb()}
 
-        {/* Stats Cards */}
-        {currentView === 'projects' && !searchQuery && stats && (
+        {/* Stats Cards - Only show on projects view and when stats are available */}
+        {currentView === 'projects' && stats && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
               <CardHeader className="pb-3">
@@ -376,7 +383,14 @@ const Index = () => {
           {currentView === 'projects' && (
             <Card>
               <CardHeader>
-                <CardTitle>项目列表</CardTitle>
+                <CardTitle>
+                  项目列表
+                  {searchQuery && (
+                    <span className="text-sm font-normal text-muted-foreground ml-2">
+                      (搜索: "{searchQuery}")
+                    </span>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -386,7 +400,7 @@ const Index = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {projects.map((project) => (
+                    {filteredProjects.map((project) => (
                       <Card key={project.id} className="cursor-pointer hover:shadow-md transition-shadow" 
                             onClick={() => handleProjectSelect(project.name)}>
                         <CardHeader className="pb-3">
@@ -408,6 +422,21 @@ const Index = () => {
                         </CardContent>
                       </Card>
                     ))}
+                  </div>
+                )}
+                
+                {!loading && filteredProjects.length === 0 && (
+                  <div className="text-center py-8">
+                    <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">
+                      {searchQuery ? '未找到匹配的项目' : '暂无项目'}
+                    </h3>
+                    <p className="text-muted-foreground">
+                      {searchQuery 
+                        ? '尝试使用不同的关键词搜索' 
+                        : '开始导入您的 AI 编程工具对话记录'
+                      }
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -458,37 +487,6 @@ const Index = () => {
                 <MessageDetail conversation={formatConversationForDetail()!} />
               )}
             </div>
-          )}
-
-          {currentView === 'search' && searchQuery && (
-            <Card>
-              <CardHeader>
-                <CardTitle>搜索结果: "{searchQuery}"</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {projects.map((project) => (
-                    <Card key={project.id} className="cursor-pointer hover:shadow-md transition-shadow" 
-                          onClick={() => handleProjectSelect(project.name)}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{project.name}</CardTitle>
-                          <Badge variant="secondary">{project.platform}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          路径: {truncateText(project.path, 40)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          更新时间: {formatDate(project.updated_at)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
           )}
         </div>
       </div>

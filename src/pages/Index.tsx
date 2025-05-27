@@ -244,10 +244,29 @@ const Index = () => {
   const formatConversationForDetail = () => {
     if (!selectedConversation || !messages.length) return null;
     
+    // Map platform names to tool config keys
+    const platformToTool = (platform: string): 'cursor' | 'augmentcode' | 'cline' | 'roocode' => {
+      const normalizedPlatform = platform.toLowerCase();
+      switch (normalizedPlatform) {
+        case 'cursor':
+        case 'cursor-ai':
+          return 'cursor';
+        case 'augmentcode':
+        case 'augment-code':
+          return 'augmentcode';
+        case 'cline':
+          return 'cline';
+        case 'roocode':
+          return 'roocode';
+        default:
+          return 'cursor'; // fallback to cursor
+      }
+    };
+    
     return {
       id: selectedConversation.id,
       title: selectedConversation.name || '未命名对话',
-      tool: selectedProject?.platform.toLowerCase() as 'cursor' | 'augmentcode' | 'cline' | 'roocode',
+      tool: platformToTool(selectedProject?.platform || 'cursor'),
       createdAt: selectedConversation.created_at,
       messages: messages.map(msg => ({
         id: msg.id.toString(),

@@ -21,10 +21,15 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
     cursor: { color: 'blue', label: 'Cursor' },
     augmentcode: { color: 'green', label: 'AugmentCode' },
     cline: { color: 'purple', label: 'Cline' },
-    roocode: { color: 'orange', label: 'RooCode' }
+    roocode: { color: 'orange', label: 'RooCode' },
+    // Add fallback mappings for common platform names
+    'cursor-ai': { color: 'blue', label: 'Cursor' },
+    'augment-code': { color: 'green', label: 'AugmentCode' },
+    default: { color: 'gray', label: 'AI助手' }
   };
 
-  const config = toolConfig[conversation.tool];
+  // Get config with fallback to default
+  const config = toolConfig[conversation.tool] || toolConfig.default;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('zh-CN', {

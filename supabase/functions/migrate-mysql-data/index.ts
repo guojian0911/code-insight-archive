@@ -18,11 +18,22 @@ const MYSQL_CONFIG = {
   db: 'chat_history'
 };
 
+// 生成 UUID v4
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  let mysqlClient;
 
   try {
     const { action, batchSize = 100 } = await req.json();
@@ -32,8 +43,14 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Initialize MySQL client with hardcoded config
-    const mysqlClient = await new Client().connect(MYSQL_CONFIG);
+    // Initialize MySQL client with hardcoded config and timeout
+    console.log('Connecting to MySQL...');
+    mysqlClient = new Client();
+    await mysqlClient.connect({
+      ...MYSQL_CONFIG,
+      timeout: 30000, // 30 seconds timeout
+    });
+    console.log('MySQL connected successfully');
 
     let result = {};
 
@@ -79,20 +96,22 @@ serve(async (req) => {
         const mysqlProjects = await mysqlClient.query('SELECT * FROM projects LIMIT ?', [batchSize]);
         
         const projectsToInsert = mysqlProjects.map((project: any) => ({
-          id: project.id,
-          workspace_id: project.workspace_id,
-          platform: project.platform,
-          name: project.name,
-          path: project.path,
+          id: generateUUID(), // 生成新的 UUID 而不是使用原始数字 ID
+          workspace_id: project.workspace_id || '',
+          platform: project.platform || '',
+          name: project.name || '',
+          path: project.path || '',
           created_at: project.created_at,
           updated_at: project.updated_at
         }));
 
-        const { error: projectsError } = await supabase
-          .from('projects')
-          .upsert(projectsToInsert, { onConflict: 'id' });
+        if (projectsToInsert.length > 0) {
+          const { error: projectsError } = await supabase
+            .from('projects')
+            .insert(projectsToInsert);
 
-        if (projectsError) throw projectsError;
+          if (projectsError) throw projectsError;
+        }
 
         result = {
           migrated: projectsToInsert.length,
@@ -104,22 +123,24 @@ serve(async (req) => {
         const mysqlConversations = await mysqlClient.query('SELECT * FROM conversations LIMIT ?', [batchSize]);
         
         const conversationsToInsert = mysqlConversations.map((conv: any) => ({
-          id: conv.id,
-          workspace_id: conv.workspace_id,
-          project_name: conv.project_name,
-          name: conv.name,
+          id: conv.id || generateUUID(),
+          workspace_id: conv.workspace_id || '',
+          project_name: conv.project_name || '',
+          name: conv.name || '',
           created_at: conv.created_at,
           last_interacted_at: conv.last_interacted_at,
-          message_count: conv.message_count,
-          created_timestamp: conv.created_timestamp,
-          updated_timestamp: conv.updated_timestamp
+          message_count: conv.message_count || 0,
+          created_timestamp: conv.created_timestamp || new Date().toISOString(),
+          updated_timestamp: conv.updated_timestamp || new Date().toISOString()
         }));
 
-        const { error: conversationsError } = await supabase
-          .from('conversations')
-          .upsert(conversationsToInsert, { onConflict: 'id' });
+        if (conversationsToInsert.length > 0) {
+          const { error: conversationsError } = await supabase
+            .from('conversations')
+            .insert(conversationsToInsert);
 
-        if (conversationsError) throw conversationsError;
+          if (conversationsError) throw conversationsError;
+        }
 
         result = {
           migrated: conversationsToInsert.length,
@@ -131,22 +152,24 @@ serve(async (req) => {
         const mysqlMessages = await mysqlClient.query('SELECT * FROM messages LIMIT ?', [batchSize]);
         
         const messagesToInsert = mysqlMessages.map((msg: any) => ({
-          id: msg.id,
-          conversation_id: msg.conversation_id,
-          request_id: msg.request_id,
-          role: msg.role,
-          content: msg.content,
+          id: generateUUID(), // 生成新的 UUID
+          conversation_id: msg.conversation_id || '',
+          request_id: msg.request_id || '',
+          role: msg.role || '',
+          content: msg.content || '',
           timestamp: msg.timestamp,
-          message_order: msg.message_order,
+          message_order: msg.message_order || 0,
           workspace_files: msg.workspace_files,
-          created_at: msg.created_at
+          created_at: msg.created_at || new Date().toISOString()
         }));
 
-        const { error: messagesError } = await supabase
-          .from('messages')
-          .upsert(messagesToInsert, { onConflict: 'id' });
+        if (messagesToInsert.length > 0) {
+          const { error: messagesError } = await supabase
+            .from('messages')
+            .insert(messagesToInsert);
 
-        if (messagesError) throw messagesError;
+          if (messagesError) throw messagesError;
+        }
 
         result = {
           migrated: messagesToInsert.length,
@@ -155,75 +178,97 @@ serve(async (req) => {
         break;
 
       case 'migrate_all':
+        console.log('Starting complete migration...');
+        
         // Migrate in order: projects -> conversations -> messages
         const allProjects = await mysqlClient.query('SELECT * FROM projects');
+        console.log(`Found ${allProjects.length} projects to migrate`);
+
         const allConversations = await mysqlClient.query('SELECT * FROM conversations');
+        console.log(`Found ${allConversations.length} conversations to migrate`);
+
         const allMessages = await mysqlClient.query('SELECT * FROM messages');
+        console.log(`Found ${allMessages.length} messages to migrate`);
 
         // Migrate projects
         if (allProjects.length > 0) {
           const projectsData = allProjects.map((project: any) => ({
-            id: project.id,
-            workspace_id: project.workspace_id,
-            platform: project.platform,
-            name: project.name,
-            path: project.path,
+            id: generateUUID(),
+            workspace_id: project.workspace_id || '',
+            platform: project.platform || '',
+            name: project.name || '',
+            path: project.path || '',
             created_at: project.created_at,
             updated_at: project.updated_at
           }));
 
           const { error: pError } = await supabase
             .from('projects')
-            .upsert(projectsData, { onConflict: 'id' });
-          if (pError) throw pError;
+            .insert(projectsData);
+          if (pError) {
+            console.error('Projects migration error:', pError);
+            throw pError;
+          }
+          console.log(`Migrated ${projectsData.length} projects`);
         }
 
         // Migrate conversations
         if (allConversations.length > 0) {
           const conversationsData = allConversations.map((conv: any) => ({
-            id: conv.id,
-            workspace_id: conv.workspace_id,
-            project_name: conv.project_name,
-            name: conv.name,
+            id: conv.id || generateUUID(),
+            workspace_id: conv.workspace_id || '',
+            project_name: conv.project_name || '',
+            name: conv.name || '',
             created_at: conv.created_at,
             last_interacted_at: conv.last_interacted_at,
-            message_count: conv.message_count,
-            created_timestamp: conv.created_timestamp,
-            updated_timestamp: conv.updated_timestamp
+            message_count: conv.message_count || 0,
+            created_timestamp: conv.created_timestamp || new Date().toISOString(),
+            updated_timestamp: conv.updated_timestamp || new Date().toISOString()
           }));
 
           const { error: cError } = await supabase
             .from('conversations')
-            .upsert(conversationsData, { onConflict: 'id' });
-          if (cError) throw cError;
+            .insert(conversationsData);
+          if (cError) {
+            console.error('Conversations migration error:', cError);
+            throw cError;
+          }
+          console.log(`Migrated ${conversationsData.length} conversations`);
         }
 
         // Migrate messages in batches
         const batchSizeForMessages = 500;
+        let totalMessagesMigrated = 0;
+        
         for (let i = 0; i < allMessages.length; i += batchSizeForMessages) {
           const batch = allMessages.slice(i, i + batchSizeForMessages);
           const messagesData = batch.map((msg: any) => ({
-            id: msg.id,
-            conversation_id: msg.conversation_id,
-            request_id: msg.request_id,
-            role: msg.role,
-            content: msg.content,
+            id: generateUUID(),
+            conversation_id: msg.conversation_id || '',
+            request_id: msg.request_id || '',
+            role: msg.role || '',
+            content: msg.content || '',
             timestamp: msg.timestamp,
-            message_order: msg.message_order,
+            message_order: msg.message_order || 0,
             workspace_files: msg.workspace_files,
-            created_at: msg.created_at
+            created_at: msg.created_at || new Date().toISOString()
           }));
 
           const { error: mError } = await supabase
             .from('messages')
-            .upsert(messagesData, { onConflict: 'id' });
-          if (mError) throw mError;
+            .insert(messagesData);
+          if (mError) {
+            console.error('Messages migration error:', mError);
+            throw mError;
+          }
+          totalMessagesMigrated += messagesData.length;
+          console.log(`Migrated batch ${Math.floor(i / batchSizeForMessages) + 1}, total messages: ${totalMessagesMigrated}`);
         }
 
         result = {
           projects: allProjects.length,
           conversations: allConversations.length,
-          messages: allMessages.length,
+          messages: totalMessagesMigrated,
           message: 'All data migrated successfully'
         };
         break;
@@ -232,17 +277,28 @@ serve(async (req) => {
         throw new Error('Invalid action');
     }
 
-    await mysqlClient.close();
-
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Migration error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      details: error.toString()
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } finally {
+    // 确保关闭 MySQL 连接
+    if (mysqlClient) {
+      try {
+        await mysqlClient.close();
+        console.log('MySQL connection closed');
+      } catch (closeError) {
+        console.error('Error closing MySQL connection:', closeError);
+      }
+    }
   }
 });

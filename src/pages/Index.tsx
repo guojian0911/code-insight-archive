@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import MessageDetail from '@/components/MessageDetail';
 
 interface MySQLProject {
   id: number;
@@ -239,6 +240,24 @@ const Index = () => {
     return text.substring(0, maxLength) + '...';
   };
 
+  // 转换MySQL消息格式为MessageDetail组件期望的格式
+  const formatConversationForDetail = () => {
+    if (!selectedConversation || !messages.length) return null;
+    
+    return {
+      id: selectedConversation.id,
+      title: selectedConversation.name || '未命名对话',
+      tool: selectedProject?.platform.toLowerCase() as 'cursor' | 'augmentcode' | 'cline' | 'roocode',
+      createdAt: selectedConversation.created_at,
+      messages: messages.map(msg => ({
+        id: msg.id.toString(),
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        timestamp: msg.timestamp
+      }))
+    };
+  };
+
   if (loading && !projects.length) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
@@ -415,39 +434,11 @@ const Index = () => {
           )}
 
           {currentView === 'messages' && selectedConversation && (
-            <Card>
-              <CardHeader>
-                <CardTitle>消息详情</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center justify-center p-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
-                    加载中...
-                  </div>
-                ) : (
-                  <div className="space-y-4 max-h-96 overflow-y-auto">
-                    {messages.map((message) => (
-                      <div key={message.id} className={`p-4 rounded-lg ${
-                        message.role === 'user' 
-                          ? 'bg-blue-50 border-l-4 border-blue-500' 
-                          : 'bg-gray-50 border-l-4 border-gray-500'
-                      }`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant={message.role === 'user' ? 'default' : 'secondary'}>
-                            {message.role === 'user' ? '用户' : '助手'}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(message.timestamp)}
-                          </span>
-                        </div>
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              {formatConversationForDetail() && (
+                <MessageDetail conversation={formatConversationForDetail()!} />
+              )}
+            </div>
           )}
 
           {currentView === 'search' && searchQuery && (

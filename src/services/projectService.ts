@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Project, Conversation, Message, ProjectWithConversations, ConversationWithMessages } from '@/types/database';
 
@@ -18,7 +17,7 @@ export const projectService = {
     // Map database fields to expected component properties
     return (data || []).map(project => ({
       ...project,
-      description: project.path || 'No description', // Ensure always has a value
+      description: project.path || 'No description',
       lastUpdated: project.updated_at
     }));
   },
@@ -41,8 +40,9 @@ export const projectService = {
     return (data || []).map(conversation => ({
       ...conversation,
       title: conversation.name || 'Untitled Conversation',
-      tool: 'cursor' as const, // Use specific literal type
-      createdAt: conversation.created_at || conversation.created_timestamp
+      tool: 'cursor' as const,
+      createdAt: conversation.created_at || conversation.created_timestamp,
+      messages: [] // Initialize with empty messages array
     }));
   },
 
@@ -59,7 +59,19 @@ export const projectService = {
       throw error;
     }
 
-    return data || [];
+    // Map database message format to expected component format
+    return (data || []).map(message => ({
+      id: message.id,
+      role: message.role === 'user' ? 'user' as const : 'assistant' as const,
+      content: message.content,
+      timestamp: message.timestamp || message.created_at,
+      // Keep database specific fields for compatibility
+      conversation_id: message.conversation_id,
+      request_id: message.request_id,
+      message_order: message.message_order,
+      workspace_files: message.workspace_files,
+      created_at: message.created_at
+    }));
   },
 
   // 获取项目及其对话（用于项目列表显示）
@@ -110,7 +122,7 @@ export const projectService = {
     
     return {
       ...data,
-      description: data.path || 'No description', // Ensure always has a value
+      description: data.path || 'No description',
       lastUpdated: data.updated_at,
       conversations
     };

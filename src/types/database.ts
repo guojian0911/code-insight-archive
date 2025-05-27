@@ -8,8 +8,21 @@ export interface Project {
   created_at: string;
   updated_at: string;
   // Add missing properties expected by components
-  description: string; // Make required instead of optional
+  description: string;
   lastUpdated: string;
+}
+
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant'; // Use specific literal types to match mock data
+  content: string;
+  timestamp: string;
+  // Database specific fields (optional for compatibility)
+  conversation_id?: string;
+  request_id?: string;
+  message_order?: number;
+  workspace_files?: any;
+  created_at?: string;
 }
 
 export interface Conversation {
@@ -24,20 +37,9 @@ export interface Conversation {
   updated_timestamp: string;
   // Add missing properties expected by components
   title: string;
-  tool: "cursor" | "augmentcode" | "cline" | "roocode"; // Use specific literal types
+  tool: "cursor" | "augmentcode" | "cline" | "roocode";
   createdAt: string;
-}
-
-export interface Message {
-  id: string;
-  conversation_id: string;
-  request_id: string;
-  role: string;
-  content: string;
-  timestamp: string | null;
-  message_order: number;
-  workspace_files: any;
-  created_at: string;
+  messages: Message[]; // Add messages property to match mock data interface
 }
 
 export interface ProjectWithConversations extends Project {

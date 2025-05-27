@@ -39,7 +39,7 @@ serve(async (req) => {
     mysqlClient = new Client();
     await mysqlClient.connect({
       ...MYSQL_CONFIG,
-      timeout: 15000,
+      timeout: 30000,
     });
     console.log('MySQL connected successfully');
 
@@ -83,36 +83,21 @@ serve(async (req) => {
         };
         break;
 
-      case 'migrate_all':
-        console.log('Starting complete migration...');
+      case 'migrate_batch':
+        // 批次迁移，支持实时进度更新
+        const { table, batchOffset, batchLimit } = await req.json();
         
-        // 清理现有数据，避免重复
-        console.log('Cleaning existing data...');
-        await supabase.from('messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('conversations').delete().neq('id', '');
-        await supabase.from('projects').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        console.log('Cleanup completed');
+        console.log(`Starting batch migration for ${table}, offset: ${batchOffset}, limit: ${batchLimit}`);
         
-        // Get total counts
-        const totalProjectsResult = await mysqlClient.query('SELECT COUNT(*) as count FROM projects');
-        const totalConversationsResult = await mysqlClient.query('SELECT COUNT(*) as count FROM conversations');
-        const totalMessagesResult = await mysqlClient.query('SELECT COUNT(*) as count FROM messages');
-        
-        const totalProjects = totalProjectsResult[0].count;
-        const totalConversations = totalConversationsResult[0].count;
-        const totalMessages = totalMessagesResult[0].count;
-        
-        console.log(`Total to migrate: ${totalProjects} projects, ${totalConversations} conversations, ${totalMessages} messages`);
+        let batchResult = {
+          migrated: 0,
+          errors: 0,
+          completed: false
+        };
 
-        // Migrate projects in small batches
-        let projectOffset = 0;
-        let totalProjectsMigrated = 0;
-        const projectBatchSize = 5;
-        
-        while (projectOffset < totalProjects) {
-          const projects = await mysqlClient.query('SELECT * FROM projects LIMIT ? OFFSET ?', [projectBatchSize, projectOffset]);
-          if (projects.length === 0) break;
-
+        if (table === 'projects') {
+          const projects = await mysqlClient.query('SELECT * FROM projects LIMIT ? OFFSET ?', [batchLimit, batchOffset]);
+          
           for (const project of projects) {
             try {
               const projectData = {
@@ -125,37 +110,28 @@ serve(async (req) => {
                 updated_at: project.updated_at || new Date().toISOString()
               };
 
-              const { error: pError } = await supabase.from('projects').insert([projectData]);
-              if (pError) {
-                console.error('Project insertion error for project:', project, 'Error:', pError);
-                // 继续处理下一个项目，不中断整个流程
+              const { error } = await supabase.from('projects').insert([projectData]);
+              if (error) {
+                console.error('Project insertion error:', error);
+                batchResult.errors++;
               } else {
-                totalProjectsMigrated++;
+                batchResult.migrated++;
               }
             } catch (err) {
-              console.error('Error processing project:', project, 'Error:', err);
+              console.error('Error processing project:', err);
+              batchResult.errors++;
             }
             
-            // 每个项目之间小延迟
-            await new Promise(resolve => setTimeout(resolve, 20));
+            // 每个项目后小延迟
+            await new Promise(resolve => setTimeout(resolve, 10));
           }
           
-          projectOffset += projectBatchSize;
-          console.log(`Processed ${projectOffset}/${totalProjects} projects, migrated: ${totalProjectsMigrated}`);
-          
-          // 批次之间延迟
-          await new Promise(resolve => setTimeout(resolve, 100));
+          batchResult.completed = projects.length < batchLimit;
         }
-
-        // Migrate conversations
-        let conversationOffset = 0;
-        let totalConversationsMigrated = 0;
-        const conversationBatchSize = 10;
         
-        while (conversationOffset < totalConversations) {
-          const conversations = await mysqlClient.query('SELECT * FROM conversations LIMIT ? OFFSET ?', [conversationBatchSize, conversationOffset]);
-          if (conversations.length === 0) break;
-
+        else if (table === 'conversations') {
+          const conversations = await mysqlClient.query('SELECT * FROM conversations LIMIT ? OFFSET ?', [batchLimit, batchOffset]);
+          
           for (const conv of conversations) {
             try {
               const convData = {
@@ -170,34 +146,27 @@ serve(async (req) => {
                 updated_timestamp: conv.updated_timestamp || new Date().toISOString()
               };
 
-              const { error: cError } = await supabase.from('conversations').insert([convData]);
-              if (cError) {
-                console.error('Conversation insertion error for conv:', conv.id, 'Error:', cError);
+              const { error } = await supabase.from('conversations').insert([convData]);
+              if (error) {
+                console.error('Conversation insertion error:', error);
+                batchResult.errors++;
               } else {
-                totalConversationsMigrated++;
+                batchResult.migrated++;
               }
             } catch (err) {
-              console.error('Error processing conversation:', conv.id, 'Error:', err);
+              console.error('Error processing conversation:', err);
+              batchResult.errors++;
             }
             
-            await new Promise(resolve => setTimeout(resolve, 20));
+            await new Promise(resolve => setTimeout(resolve, 10));
           }
           
-          conversationOffset += conversationBatchSize;
-          console.log(`Processed ${conversationOffset}/${totalConversations} conversations, migrated: ${totalConversationsMigrated}`);
-          
-          await new Promise(resolve => setTimeout(resolve, 100));
+          batchResult.completed = conversations.length < batchLimit;
         }
-
-        // Migrate messages in very small batches
-        let messageOffset = 0;
-        let totalMessagesMigrated = 0;
-        const messageBatchSize = 20;
         
-        while (messageOffset < totalMessages) {
-          const messages = await mysqlClient.query('SELECT * FROM messages LIMIT ? OFFSET ?', [messageBatchSize, messageOffset]);
-          if (messages.length === 0) break;
-
+        else if (table === 'messages') {
+          const messages = await mysqlClient.query('SELECT * FROM messages LIMIT ? OFFSET ?', [batchLimit, batchOffset]);
+          
           for (const msg of messages) {
             try {
               const msgData = {
@@ -205,39 +174,43 @@ serve(async (req) => {
                 conversation_id: String(msg.conversation_id || ''),
                 request_id: String(msg.request_id || ''),
                 role: String(msg.role || ''),
-                content: String(msg.content || '').substring(0, 10000), // 限制长度
+                content: String(msg.content || '').substring(0, 8000), // 限制长度避免过大
                 timestamp: msg.timestamp,
                 message_order: msg.message_order || 0,
                 workspace_files: msg.workspace_files,
                 created_at: msg.created_at || new Date().toISOString()
               };
 
-              const { error: mError } = await supabase.from('messages').insert([msgData]);
-              if (mError) {
-                console.error('Message insertion error for msg:', msg.id, 'Error:', mError);
+              const { error } = await supabase.from('messages').insert([msgData]);
+              if (error) {
+                console.error('Message insertion error:', error);
+                batchResult.errors++;
               } else {
-                totalMessagesMigrated++;
+                batchResult.migrated++;
               }
             } catch (err) {
-              console.error('Error processing message:', msg.id, 'Error:', err);
+              console.error('Error processing message:', err);
+              batchResult.errors++;
             }
             
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise(resolve => setTimeout(resolve, 5));
           }
           
-          messageOffset += messageBatchSize;
-          console.log(`Processed ${messageOffset}/${totalMessages} messages, migrated: ${totalMessagesMigrated}`);
-          
-          // 每批消息后较长延迟
-          await new Promise(resolve => setTimeout(resolve, 200));
+          batchResult.completed = messages.length < batchLimit;
         }
 
-        result = {
-          projects: totalProjectsMigrated,
-          conversations: totalConversationsMigrated,
-          messages: totalMessagesMigrated,
-          message: 'Migration completed with error handling'
-        };
+        result = batchResult;
+        break;
+
+      case 'clear_data':
+        // 清理现有数据
+        console.log('Cleaning existing data...');
+        await supabase.from('messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('conversations').delete().neq('id', '');
+        await supabase.from('projects').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        console.log('Cleanup completed');
+        
+        result = { message: 'Data cleared successfully' };
         break;
 
       default:

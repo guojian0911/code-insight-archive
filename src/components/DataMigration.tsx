@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Database, Download, Upload, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Database, Download, Upload, CheckCircle, AlertCircle, RefreshCw, Pause, Play } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -20,13 +21,49 @@ interface MigrationStats {
   };
 }
 
+interface MigrationProgress {
+  currentTable: string;
+  totalTables: number;
+  currentTableIndex: number;
+  totalItems: number;
+  migratedItems: number;
+  currentBatch: number;
+  totalBatches: number;
+  errors: number;
+  isRunning: boolean;
+  isPaused: boolean;
+}
+
 const DataMigration: React.FC = () => {
   const [stats, setStats] = useState<MigrationStats | null>(null);
-  const [migrationStatus, setMigrationStatus] = useState<'idle' | 'migrating' | 'completed' | 'error'>('idle');
+  const [migrationStatus, setMigrationStatus] = useState<'idle' | 'migrating' | 'completed' | 'error' | 'paused'>('idle');
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
-  const [migrationProgress, setMigrationProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState('');
+  const [progress, setProgress] = useState<MigrationProgress>({
+    currentTable: '',
+    totalTables: 3,
+    currentTableIndex: 0,
+    totalItems: 0,
+    migratedItems: 0,
+    currentBatch: 0,
+    totalBatches: 0,
+    errors: 0,
+    isRunning: false,
+    isPaused: false
+  });
   const { toast } = useToast();
+
+  // 批次大小配置 - 避免CPU过载
+  const BATCH_SIZES = {
+    projects: 10,      // 项目批次较小
+    conversations: 15, // 对话批次中等
+    messages: 20       // 消息批次稍大但仍然保守
+  };
+
+  const BATCH_DELAYS = {
+    projects: 200,     // 项目间延迟200ms
+    conversations: 150, // 对话间延迟150ms
+    messages: 100      // 消息间延迟100ms
+  };
 
   useEffect(() => {
     checkConnections();
@@ -76,38 +113,149 @@ const DataMigration: React.FC = () => {
     }
   };
 
-  const startMigration = async () => {
+  const clearData = async () => {
     try {
-      setMigrationStatus('migrating');
-      setMigrationProgress(0);
-      setCurrentStep('开始迁移...');
-
       const { data, error } = await supabase.functions.invoke('migrate-mysql-data', {
-        body: { action: 'migrate_all' }
+        body: { action: 'clear_data' }
       });
 
       if (error) throw error;
-
-      setMigrationProgress(100);
-      setCurrentStep('迁移完成');
-      setMigrationStatus('completed');
       
-      await getStats(); // Refresh stats
+      toast({
+        title: "数据清理完成",
+        description: "Supabase 中的现有数据已清理",
+      });
+      
+      await getStats();
+    } catch (error) {
+      console.error('Clear data failed:', error);
+      toast({
+        title: "清理失败",
+        description: "清理数据时出现错误",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const migrateBatch = async (table: string, offset: number, batchSize: number) => {
+    const { data, error } = await supabase.functions.invoke('migrate-mysql-data', {
+      body: { 
+        action: 'migrate_batch',
+        table,
+        batchOffset: offset,
+        batchLimit: batchSize
+      }
+    });
+
+    if (error) throw error;
+    return data;
+  };
+
+  const startMigration = async () => {
+    if (!stats) return;
+
+    try {
+      setMigrationStatus('migrating');
+      
+      // 先清理数据
+      await clearData();
+      
+      const tables = [
+        { name: 'projects', total: stats.mysql.projects },
+        { name: 'conversations', total: stats.mysql.conversations },
+        { name: 'messages', total: stats.mysql.messages }
+      ];
+
+      let totalMigrated = 0;
+      let totalErrors = 0;
+
+      for (let tableIndex = 0; tableIndex < tables.length; tableIndex++) {
+        const table = tables[tableIndex];
+        const batchSize = BATCH_SIZES[table.name as keyof typeof BATCH_SIZES];
+        const delay = BATCH_DELAYS[table.name as keyof typeof BATCH_DELAYS];
+        const totalBatches = Math.ceil(table.total / batchSize);
+        
+        setProgress(prev => ({
+          ...prev,
+          currentTable: table.name,
+          currentTableIndex: tableIndex,
+          totalItems: table.total,
+          migratedItems: 0,
+          currentBatch: 0,
+          totalBatches,
+          isRunning: true
+        }));
+
+        let offset = 0;
+        let batchIndex = 0;
+        let tableMigrated = 0;
+
+        while (offset < table.total && migrationStatus !== 'paused') {
+          try {
+            const result = await migrateBatch(table.name, offset, batchSize);
+            
+            tableMigrated += result.migrated;
+            totalMigrated += result.migrated;
+            totalErrors += result.errors;
+            batchIndex++;
+
+            setProgress(prev => ({
+              ...prev,
+              migratedItems: tableMigrated,
+              currentBatch: batchIndex,
+              errors: totalErrors
+            }));
+
+            toast({
+              title: `${table.name} 批次 ${batchIndex}/${totalBatches} 完成`,
+              description: `迁移 ${result.migrated} 条记录，${result.errors} 个错误`,
+            });
+
+            if (result.completed) break;
+            
+            offset += batchSize;
+            
+            // 批次间延迟，避免CPU过载
+            await new Promise(resolve => setTimeout(resolve, delay));
+            
+          } catch (error) {
+            console.error(`Batch migration error for ${table.name}:`, error);
+            totalErrors++;
+            break;
+          }
+        }
+      }
+
+      setMigrationStatus('completed');
+      setProgress(prev => ({ ...prev, isRunning: false }));
+      
+      await getStats();
 
       toast({
-        title: "迁移成功",
-        description: `成功迁移 ${data.projects} 个项目、${data.conversations} 个对话、${data.messages} 条消息`,
+        title: "迁移完成",
+        description: `总共迁移 ${totalMigrated} 条记录，${totalErrors} 个错误`,
       });
 
     } catch (error) {
       console.error('Migration failed:', error);
       setMigrationStatus('error');
+      setProgress(prev => ({ ...prev, isRunning: false }));
       toast({
         title: "迁移失败",
         description: error.message || "数据迁移过程中出现错误",
         variant: "destructive",
       });
     }
+  };
+
+  const pauseMigration = () => {
+    setMigrationStatus('paused');
+    setProgress(prev => ({ ...prev, isPaused: true, isRunning: false }));
+  };
+
+  const resumeMigration = () => {
+    setMigrationStatus('migrating');
+    setProgress(prev => ({ ...prev, isPaused: false, isRunning: true }));
   };
 
   const getConnectionStatusBadge = () => {
@@ -127,11 +275,25 @@ const DataMigration: React.FC = () => {
         return <Database className="h-5 w-5" />;
       case 'migrating':
         return <RefreshCw className="h-5 w-5 animate-spin" />;
+      case 'paused':
+        return <Pause className="h-5 w-5 text-yellow-500" />;
       case 'completed':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'error':
         return <AlertCircle className="h-5 w-5 text-red-500" />;
     }
+  };
+
+  const getOverallProgress = () => {
+    if (!stats) return 0;
+    const total = stats.mysql.projects + stats.mysql.conversations + stats.mysql.messages;
+    if (total === 0) return 0;
+    
+    const currentTableProgress = progress.totalItems > 0 ? (progress.migratedItems / progress.totalItems) : 0;
+    const completedTablesProgress = progress.currentTableIndex / progress.totalTables;
+    const currentTableWeight = 1 / progress.totalTables;
+    
+    return Math.round((completedTablesProgress + currentTableWeight * currentTableProgress) * 100);
   };
 
   return (
@@ -221,24 +383,85 @@ const DataMigration: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {migrationStatus === 'migrating' && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>{currentStep}</span>
-                <span>{migrationProgress}%</span>
+          {progress.isRunning && (
+            <div className="space-y-4">
+              {/* 总体进度 */}
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>总体进度</span>
+                  <span>{getOverallProgress()}%</span>
+                </div>
+                <Progress value={getOverallProgress()} className="h-2" />
               </div>
-              <Progress value={migrationProgress} />
+
+              {/* 当前表进度 */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">当前表: {progress.currentTable}</span>
+                  <Badge variant="secondary">
+                    批次 {progress.currentBatch}/{progress.totalBatches}
+                  </Badge>
+                </div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>已迁移: {progress.migratedItems}/{progress.totalItems}</span>
+                  <span>错误: {progress.errors}</span>
+                </div>
+                <Progress 
+                  value={progress.totalItems > 0 ? (progress.migratedItems / progress.totalItems) * 100 : 0} 
+                  className="h-2"
+                />
+              </div>
+
+              {/* 批次设置信息 */}
+              <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded">
+                <div className="font-medium mb-1">批次设置 (优化CPU使用):</div>
+                <div>项目: {BATCH_SIZES.projects} 条/批次, {BATCH_DELAYS.projects}ms 延迟</div>
+                <div>对话: {BATCH_SIZES.conversations} 条/批次, {BATCH_DELAYS.conversations}ms 延迟</div>
+                <div>消息: {BATCH_SIZES.messages} 条/批次, {BATCH_DELAYS.messages}ms 延迟</div>
+              </div>
             </div>
           )}
 
           <div className="flex space-x-3">
+            {!progress.isRunning && migrationStatus !== 'paused' && (
+              <Button
+                onClick={startMigration}
+                disabled={connectionStatus !== 'connected'}
+                className="flex items-center"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                开始迁移
+              </Button>
+            )}
+
+            {progress.isRunning && (
+              <Button
+                onClick={pauseMigration}
+                variant="outline"
+                className="flex items-center"
+              >
+                <Pause className="h-4 w-4 mr-2" />
+                暂停迁移
+              </Button>
+            )}
+
+            {migrationStatus === 'paused' && (
+              <Button
+                onClick={resumeMigration}
+                className="flex items-center"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                继续迁移
+              </Button>
+            )}
+
             <Button
-              onClick={startMigration}
-              disabled={connectionStatus !== 'connected' || migrationStatus === 'migrating'}
-              className="flex items-center"
+              variant="outline"
+              onClick={clearData}
+              disabled={connectionStatus !== 'connected' || progress.isRunning}
             >
-              <Upload className="h-4 w-4 mr-2" />
-              {migrationStatus === 'migrating' ? '迁移中...' : '开始迁移'}
+              <RefreshCw className="h-4 w-4 mr-2" />
+              清理数据
             </Button>
 
             <Button

@@ -83,97 +83,6 @@ serve(async (req) => {
         };
         break;
 
-      case 'migrate_projects':
-        const mysqlProjects = await mysqlClient.query('SELECT * FROM projects LIMIT ? OFFSET ?', [batchSize, offset]);
-        
-        if (mysqlProjects.length > 0) {
-          const projectsToInsert = mysqlProjects.map((project: any) => ({
-            id: project.id || crypto.randomUUID(),
-            workspace_id: project.workspace_id || '',
-            platform: project.platform || '',
-            name: project.name || '',
-            path: project.path || '',
-            created_at: project.created_at || new Date().toISOString(),
-            updated_at: project.updated_at || new Date().toISOString()
-          }));
-
-          const { error: projectsError } = await supabase
-            .from('projects')
-            .insert(projectsToInsert);
-
-          if (projectsError) throw projectsError;
-        }
-
-        result = {
-          migrated: mysqlProjects.length,
-          hasMore: mysqlProjects.length === batchSize,
-          nextOffset: offset + mysqlProjects.length,
-          message: `Successfully migrated ${mysqlProjects.length} projects`
-        };
-        break;
-
-      case 'migrate_conversations':
-        const mysqlConversations = await mysqlClient.query('SELECT * FROM conversations LIMIT ? OFFSET ?', [batchSize, offset]);
-        
-        if (mysqlConversations.length > 0) {
-          const conversationsToInsert = mysqlConversations.map((conv: any) => ({
-            id: conv.id || crypto.randomUUID(),
-            workspace_id: conv.workspace_id || '',
-            project_name: conv.project_name || '',
-            name: conv.name || '',
-            created_at: conv.created_at,
-            last_interacted_at: conv.last_interacted_at,
-            message_count: conv.message_count || 0,
-            created_timestamp: conv.created_timestamp || new Date().toISOString(),
-            updated_timestamp: conv.updated_timestamp || new Date().toISOString()
-          }));
-
-          const { error: conversationsError } = await supabase
-            .from('conversations')
-            .insert(conversationsToInsert);
-
-          if (conversationsError) throw conversationsError;
-        }
-
-        result = {
-          migrated: mysqlConversations.length,
-          hasMore: mysqlConversations.length === batchSize,
-          nextOffset: offset + mysqlConversations.length,
-          message: `Successfully migrated ${mysqlConversations.length} conversations`
-        };
-        break;
-
-      case 'migrate_messages':
-        const mysqlMessages = await mysqlClient.query('SELECT * FROM messages LIMIT ? OFFSET ?', [batchSize, offset]);
-        
-        if (mysqlMessages.length > 0) {
-          const messagesToInsert = mysqlMessages.map((msg: any) => ({
-            id: crypto.randomUUID(),
-            conversation_id: msg.conversation_id || '',
-            request_id: msg.request_id || '',
-            role: msg.role || '',
-            content: msg.content || '',
-            timestamp: msg.timestamp,
-            message_order: msg.message_order || 0,
-            workspace_files: msg.workspace_files,
-            created_at: msg.created_at || new Date().toISOString()
-          }));
-
-          const { error: messagesError } = await supabase
-            .from('messages')
-            .insert(messagesToInsert);
-
-          if (messagesError) throw messagesError;
-        }
-
-        result = {
-          migrated: mysqlMessages.length,
-          hasMore: mysqlMessages.length === batchSize,
-          nextOffset: offset + mysqlMessages.length,
-          message: `Successfully migrated ${mysqlMessages.length} messages`
-        };
-        break;
-
       case 'migrate_all':
         console.log('Starting complete migration...');
         
@@ -188,47 +97,53 @@ serve(async (req) => {
         
         console.log(`Total to migrate: ${totalProjects} projects, ${totalConversations} conversations, ${totalMessages} messages`);
 
-        // Migrate projects in small batches
+        // Migrate projects
         let projectOffset = 0;
         let totalProjectsMigrated = 0;
-        const projectBatchSize = 20;
+        const projectBatchSize = 10;
         
         while (projectOffset < totalProjects) {
           const projects = await mysqlClient.query('SELECT * FROM projects LIMIT ? OFFSET ?', [projectBatchSize, projectOffset]);
           if (projects.length === 0) break;
 
           const projectsData = projects.map((project: any) => ({
-            id: project.id || crypto.randomUUID(),
-            workspace_id: project.workspace_id || '',
-            platform: project.platform || '',
-            name: project.name || '',
-            path: project.path || '',
+            id: crypto.randomUUID(), // 总是生成新的UUID
+            workspace_id: String(project.workspace_id || ''),
+            platform: String(project.platform || ''),
+            name: String(project.name || ''),
+            path: String(project.path || ''),
             created_at: project.created_at || new Date().toISOString(),
             updated_at: project.updated_at || new Date().toISOString()
           }));
 
           const { error: pError } = await supabase.from('projects').insert(projectsData);
-          if (pError) throw pError;
+          if (pError) {
+            console.error('Project insertion error:', pError);
+            throw pError;
+          }
           
           totalProjectsMigrated += projects.length;
           projectOffset += projectBatchSize;
           console.log(`Migrated ${totalProjectsMigrated}/${totalProjects} projects`);
+          
+          // 小延迟
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
 
-        // Migrate conversations in small batches
+        // Migrate conversations
         let conversationOffset = 0;
         let totalConversationsMigrated = 0;
-        const conversationBatchSize = 30;
+        const conversationBatchSize = 15;
         
         while (conversationOffset < totalConversations) {
           const conversations = await mysqlClient.query('SELECT * FROM conversations LIMIT ? OFFSET ?', [conversationBatchSize, conversationOffset]);
           if (conversations.length === 0) break;
 
           const conversationsData = conversations.map((conv: any) => ({
-            id: conv.id || crypto.randomUUID(),
-            workspace_id: conv.workspace_id || '',
-            project_name: conv.project_name || '',
-            name: conv.name || '',
+            id: String(conv.id || crypto.randomUUID()), // 保持原ID作为字符串
+            workspace_id: String(conv.workspace_id || ''),
+            project_name: String(conv.project_name || ''),
+            name: String(conv.name || ''),
             created_at: conv.created_at,
             last_interacted_at: conv.last_interacted_at,
             message_count: conv.message_count || 0,
@@ -237,28 +152,33 @@ serve(async (req) => {
           }));
 
           const { error: cError } = await supabase.from('conversations').insert(conversationsData);
-          if (cError) throw cError;
+          if (cError) {
+            console.error('Conversation insertion error:', cError);
+            throw cError;
+          }
           
           totalConversationsMigrated += conversations.length;
           conversationOffset += conversationBatchSize;
           console.log(`Migrated ${totalConversationsMigrated}/${totalConversations} conversations`);
+          
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
 
-        // Migrate messages in very small batches to avoid timeout
+        // Migrate messages in very small batches
         let messageOffset = 0;
         let totalMessagesMigrated = 0;
-        const messageBatchSize = 100;
+        const messageBatchSize = 50;
         
         while (messageOffset < totalMessages) {
           const messages = await mysqlClient.query('SELECT * FROM messages LIMIT ? OFFSET ?', [messageBatchSize, messageOffset]);
           if (messages.length === 0) break;
 
           const messagesData = messages.map((msg: any) => ({
-            id: crypto.randomUUID(),
-            conversation_id: msg.conversation_id || '',
-            request_id: msg.request_id || '',
-            role: msg.role || '',
-            content: msg.content || '',
+            id: crypto.randomUUID(), // 总是生成新的UUID
+            conversation_id: String(msg.conversation_id || ''),
+            request_id: String(msg.request_id || ''),
+            role: String(msg.role || ''),
+            content: String(msg.content || ''),
             timestamp: msg.timestamp,
             message_order: msg.message_order || 0,
             workspace_files: msg.workspace_files,
@@ -266,13 +186,16 @@ serve(async (req) => {
           }));
 
           const { error: mError } = await supabase.from('messages').insert(messagesData);
-          if (mError) throw mError;
+          if (mError) {
+            console.error('Message insertion error:', mError);
+            throw mError;
+          }
           
           totalMessagesMigrated += messages.length;
           messageOffset += messageBatchSize;
           console.log(`Migrated ${totalMessagesMigrated}/${totalMessages} messages`);
           
-          // Add small delay to prevent overwhelming the system
+          // 增加延迟防止超时
           await new Promise(resolve => setTimeout(resolve, 100));
         }
 
@@ -296,7 +219,8 @@ serve(async (req) => {
     console.error('Migration error:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
-      details: error.toString()
+      details: error.toString(),
+      stack: error.stack
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

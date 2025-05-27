@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Database, Tabs, TabsList, TabsTrigger } from 'lucide-react';
+import { Database } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs as UITabs, TabsContent } from '@/components/ui/tabs';
+import { Tabs as UITabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MySQLDataViewer from './MySQLDataViewer';
 
 const DataMigration: React.FC = () => {

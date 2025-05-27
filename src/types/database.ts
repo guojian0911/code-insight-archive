@@ -7,6 +7,9 @@ export interface Project {
   path: string;
   created_at: string;
   updated_at: string;
+  // Add missing properties expected by components
+  description?: string;
+  lastUpdated: string;
 }
 
 export interface Conversation {
@@ -19,6 +22,10 @@ export interface Conversation {
   message_count: number;
   created_timestamp: string;
   updated_timestamp: string;
+  // Add missing properties expected by components
+  title: string;
+  tool: string;
+  createdAt: string;
 }
 
 export interface Message {

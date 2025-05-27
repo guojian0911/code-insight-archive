@@ -15,7 +15,12 @@ export const projectService = {
       throw error;
     }
 
-    return data || [];
+    // Map database fields to expected component properties
+    return (data || []).map(project => ({
+      ...project,
+      description: project.path, // Use path as description fallback
+      lastUpdated: project.updated_at
+    }));
   },
 
   // 根据 workspace_id 获取项目的对话
@@ -32,7 +37,13 @@ export const projectService = {
       throw error;
     }
 
-    return data || [];
+    // Map database fields to expected component properties
+    return (data || []).map(conversation => ({
+      ...conversation,
+      title: conversation.name || 'Untitled Conversation',
+      tool: 'AI Assistant', // Default tool name
+      createdAt: conversation.created_at || conversation.created_timestamp
+    }));
   },
 
   // 获取对话的消息
@@ -99,6 +110,8 @@ export const projectService = {
     
     return {
       ...data,
+      description: data.path, // Use path as description fallback
+      lastUpdated: data.updated_at,
       conversations
     };
   }

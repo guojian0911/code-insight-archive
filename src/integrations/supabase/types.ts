@@ -44,6 +44,78 @@ export type Database = {
           },
         ]
       }
+      conversations: {
+        Row: {
+          created_at: string | null
+          created_timestamp: string
+          id: string
+          last_interacted_at: string | null
+          message_count: number | null
+          name: string | null
+          project_name: string
+          updated_timestamp: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_timestamp?: string
+          id: string
+          last_interacted_at?: string | null
+          message_count?: number | null
+          name?: string | null
+          project_name: string
+          updated_timestamp?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_timestamp?: string
+          id?: string
+          last_interacted_at?: string | null
+          message_count?: number | null
+          name?: string | null
+          project_name?: string
+          updated_timestamp?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          message_order: number
+          request_id: string
+          role: string
+          timestamp: string | null
+          workspace_files: Json | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          message_order: number
+          request_id: string
+          role: string
+          timestamp?: string | null
+          workspace_files?: Json | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          message_order?: number
+          request_id?: string
+          role?: string
+          timestamp?: string | null
+          workspace_files?: Json | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -71,6 +143,36 @@ export type Database = {
           provider_id?: string | null
           updated_at?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          path: string
+          platform: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          path: string
+          platform: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          path?: string
+          platform?: string
+          updated_at?: string
+          workspace_id?: string
         }
         Relationships: []
       }

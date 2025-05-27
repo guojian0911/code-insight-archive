@@ -3,10 +3,10 @@ import React from 'react';
 import { Calendar, MessageSquare, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Project } from '@/data/mockData';
+import { ProjectWithConversations } from '@/types/database';
 
 interface ProjectListProps {
-  projects: Project[];
+  projects: ProjectWithConversations[];
   onProjectSelect: (projectId: string) => void;
 }
 
@@ -19,10 +19,12 @@ const ProjectList: React.FC<ProjectListProps> = ({ projects, onProjectSelect }) 
     });
   };
 
-  const getToolStats = (project: Project) => {
+  const getToolStats = (project: ProjectWithConversations) => {
     const toolCounts: Record<string, number> = {};
     project.conversations.forEach(conv => {
-      toolCounts[conv.tool] = (toolCounts[conv.tool] || 0) + 1;
+      // 使用 workspace_id 的前缀来识别工具类型，或者直接使用 platform 字段
+      const tool = project.platform || 'unknown';
+      toolCounts[tool] = (toolCounts[tool] || 0) + 1;
     });
     return toolCounts;
   };
@@ -53,13 +55,16 @@ const ProjectList: React.FC<ProjectListProps> = ({ projects, onProjectSelect }) 
                       <FolderOpen className="h-5 w-5 mr-2 text-blue-500" />
                       {project.name}
                     </CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {project.platform} • {project.workspace_id}
+                    </p>
                   </div>
                 </div>
               </CardHeader>
               
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground text-sm line-clamp-2">
-                  {project.description}
+                  路径: {project.path}
                 </p>
 
                 <div className="flex items-center justify-between text-sm">
@@ -69,7 +74,7 @@ const ProjectList: React.FC<ProjectListProps> = ({ projects, onProjectSelect }) 
                   </div>
                   <div className="flex items-center text-muted-foreground">
                     <Calendar className="h-4 w-4 mr-1" />
-                    {formatDate(project.lastUpdated)}
+                    {formatDate(project.updated_at)}
                   </div>
                 </div>
 
@@ -95,6 +100,14 @@ const ProjectList: React.FC<ProjectListProps> = ({ projects, onProjectSelect }) 
           );
         })}
       </div>
+
+      {projects.length === 0 && (
+        <div className="text-center py-12">
+          <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-muted-foreground mb-2">暂无项目</h3>
+          <p className="text-sm text-muted-foreground">开始导入您的 AI 编程工具对话记录</p>
+        </div>
+      )}
     </div>
   );
 };

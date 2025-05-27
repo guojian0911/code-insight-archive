@@ -1,33 +1,81 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, MessageSquare, Code, Bot } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
 import ProjectList from '@/components/ProjectList';
 import ConversationList from '@/components/ConversationList';
 import MessageDetail from '@/components/MessageDetail';
 import SearchResults from '@/components/SearchResults';
-import { mockData } from '@/data/mockData';
+import { projectService } from '@/services/projectService';
+import { ProjectWithConversations, ConversationWithMessages } from '@/types/database';
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<'projects' | 'conversations' | 'messages' | 'search'>('projects');
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectWithConversations[]>([]);
+  const [selectedProject, setSelectedProject] = useState<ProjectWithConversations | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationWithMessages | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const handleProjectSelect = (projectId: string) => {
-    setSelectedProject(projectId);
-    setCurrentView('conversations');
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      const data = await projectService.getProjectsWithConversations();
+      setProjects(data);
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+      toast({
+        title: "加载失败",
+        description: "无法加载项目数据，请稍后重试",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleConversationSelect = (conversationId: string) => {
-    setSelectedConversation(conversationId);
-    setCurrentView('messages');
+  const handleProjectSelect = async (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setSelectedProject(project);
+      setCurrentView('conversations');
+    }
   };
 
-  const handleSearch = (query: string) => {
+  const handleConversationSelect = async (conversationId: string) => {
+    if (!selectedProject) return;
+    
+    try {
+      const conversation = selectedProject.conversations.find(c => c.id === conversationId);
+      if (conversation) {
+        const messages = await projectService.getConversationMessages(conversationId);
+        const conversationWithMessages: ConversationWithMessages = {
+          ...conversation,
+          messages
+        };
+        setSelectedConversation(conversationWithMessages);
+        setCurrentView('messages');
+      }
+    } catch (error) {
+      console.error('Failed to load conversation:', error);
+      toast({
+        title: "加载失败",
+        description: "无法加载对话消息，请稍后重试",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSearch = async (query: string) => {
     setSearchQuery(query);
     if (query.trim()) {
       setCurrentView('search');
@@ -48,9 +96,6 @@ const Index = () => {
   };
 
   const renderBreadcrumb = () => {
-    const project = mockData.projects.find(p => p.id === selectedProject);
-    const conversation = project?.conversations.find(c => c.id === selectedConversation);
-
     return (
       <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
         <button 
@@ -59,26 +104,43 @@ const Index = () => {
         >
           项目
         </button>
-        {project && (
+        {selectedProject && (
           <>
             <span>/</span>
             <button 
               onClick={handleBackToConversations}
               className="hover:text-primary transition-colors"
             >
-              {project.name}
+              {selectedProject.name}
             </button>
           </>
         )}
-        {conversation && (
+        {selectedConversation && (
           <>
             <span>/</span>
-            <span className="text-foreground">{conversation.title}</span>
+            <span className="text-foreground">{selectedConversation.name}</span>
           </>
         )}
       </div>
     );
   };
+
+  const totalConversations = projects.reduce((sum, p) => sum + p.conversations.length, 0);
+  const platformCount = new Set(projects.map(p => p.platform)).size;
+  const thisMonthProjects = projects.filter(p => 
+    new Date(p.updated_at).getMonth() === new Date().getMonth()
+  ).length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-muted-foreground">加载中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -122,7 +184,7 @@ const Index = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{mockData.projects.length}</div>
+                <div className="text-2xl font-bold">{projects.length}</div>
               </CardContent>
             </Card>
 
@@ -134,9 +196,7 @@ const Index = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {mockData.projects.reduce((sum, p) => sum + p.conversations.length, 0)}
-                </div>
+                <div className="text-2xl font-bold">{totalConversations}</div>
               </CardContent>
             </Card>
 
@@ -148,7 +208,7 @@ const Index = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">4</div>
+                <div className="text-2xl font-bold">{platformCount}</div>
               </CardContent>
             </Card>
 
@@ -160,11 +220,7 @@ const Index = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {mockData.projects.filter(p => 
-                    new Date(p.lastUpdated).getMonth() === new Date().getMonth()
-                  ).length}
-                </div>
+                <div className="text-2xl font-bold">{thisMonthProjects}</div>
               </CardContent>
             </Card>
           </div>
@@ -174,32 +230,30 @@ const Index = () => {
         <div className="space-y-6">
           {currentView === 'projects' && !searchQuery && (
             <ProjectList 
-              projects={mockData.projects} 
+              projects={projects} 
               onProjectSelect={handleProjectSelect}
             />
           )}
 
           {currentView === 'conversations' && selectedProject && (
             <ConversationList
-              project={mockData.projects.find(p => p.id === selectedProject)!}
+              project={selectedProject}
               onConversationSelect={handleConversationSelect}
               selectedTools={selectedTools}
               onToolsChange={setSelectedTools}
             />
           )}
 
-          {currentView === 'messages' && selectedProject && selectedConversation && (
+          {currentView === 'messages' && selectedConversation && (
             <MessageDetail
-              conversation={mockData.projects
-                .find(p => p.id === selectedProject)!
-                .conversations.find(c => c.id === selectedConversation)!}
+              conversation={selectedConversation}
             />
           )}
 
           {currentView === 'search' && searchQuery && (
             <SearchResults
               query={searchQuery}
-              projects={mockData.projects}
+              projects={projects}
               onProjectSelect={handleProjectSelect}
               onConversationSelect={handleConversationSelect}
             />

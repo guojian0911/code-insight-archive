@@ -1,14 +1,16 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Filter, Calendar, MessageSquare, Code, Bot, Database, FolderOpen } from 'lucide-react';
+import { Filter, Database, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import MessageDetail from '@/components/MessageDetail';
+import StatsCards from '@/components/StatsCards';
+import ProjectCard from '@/components/ProjectCard';
+import ConversationCard from '@/components/ConversationCard';
+import SearchBar from '@/components/SearchBar';
 
 interface MySQLProject {
   id: number;
@@ -323,80 +325,19 @@ const Index = () => {
 
         {/* Search Bar - Only show on projects view */}
         {currentView === 'projects' && (
-          <Card className="mb-6 shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="搜索项目名称、平台、路径..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  className="pl-10 h-12 text-base"
-                />
-                {searchQuery && (
-                  <div className="absolute right-3 top-3 text-sm text-muted-foreground">
-                    {filteredProjects.length} 个结果
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <SearchBar 
+            searchQuery={searchQuery}
+            onSearchChange={handleSearchChange}
+            resultCount={filteredProjects.length}
+          />
         )}
 
         {/* Breadcrumb */}
         {currentView !== 'projects' && renderBreadcrumb()}
 
         {/* Stats Cards - Only show on projects view and when stats are available */}
-        {currentView === 'projects' && stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center">
-                  <Code className="h-4 w-4 mr-2" />
-                  总项目数
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.projects}</div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center">
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  总对话数
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.conversations}</div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center">
-                  <Bot className="h-4 w-4 mr-2" />
-                  AI工具类型
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{getToolStats(allProjects)}</div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  本月活跃
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">0</div>
-              </CardContent>
-            </Card>
-          </div>
+        {currentView === 'projects' && (
+          <StatsCards stats={stats} allProjects={allProjects} />
         )}
 
         {/* Main Content */}
@@ -426,88 +367,13 @@ const Index = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredProjects.map((project) => {
-                      const getToolBadgeColor = (platform: string) => {
-                        const normalizedPlatform = platform.toLowerCase();
-                        switch (normalizedPlatform) {
-                          case 'cursor':
-                          case 'cursor-ai':
-                            return 'border-blue-300 text-blue-600 bg-blue-50';
-                          case 'augmentcode':
-                          case 'augment-code':
-                            return 'border-green-300 text-green-600 bg-green-50';
-                          case 'cline':
-                            return 'border-purple-300 text-purple-600 bg-purple-50';
-                          case 'roocode':
-                            return 'border-orange-300 text-orange-600 bg-orange-50';
-                          default:
-                            return 'border-gray-300 text-gray-600 bg-gray-50';
-                        }
-                      };
-
-                      const getBorderColor = (platform: string) => {
-                        const normalizedPlatform = platform.toLowerCase();
-                        switch (normalizedPlatform) {
-                          case 'cursor':
-                          case 'cursor-ai':
-                            return 'border-l-blue-500';
-                          case 'augmentcode':
-                          case 'augment-code':
-                            return 'border-l-green-500';
-                          case 'cline':
-                            return 'border-l-purple-500';
-                          case 'roocode':
-                            return 'border-l-orange-500';
-                          default:
-                            return 'border-l-gray-500';
-                        }
-                      };
-
-                      return (
-                        <Card 
-                          key={project.id} 
-                          className={`cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group border-l-4 ${getBorderColor(project.platform)} shadow-sm`}
-                          onClick={() => handleProjectSelect(project.name)}
-                        >
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <CardTitle className="text-lg group-hover:text-blue-600 transition-colors flex items-center">
-                                  <FolderOpen className="h-5 w-5 mr-2 text-blue-500" />
-                                  {project.name}
-                                </CardTitle>
-                                <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                                  {truncateText(project.path, 40)}
-                                </p>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          
-                          <CardContent className="space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                              工作区: {truncateText(project.workspace_id, 20)}
-                            </p>
-
-                            <div className="flex items-center justify-between text-sm">
-                              <div className="flex items-center text-muted-foreground">
-                                <Calendar className="h-4 w-4 mr-1" />
-                                {formatDate(project.updated_at)}
-                              </div>
-                            </div>
-
-                            {/* Tool Badge */}
-                            <div className="flex flex-wrap gap-1">
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${getToolBadgeColor(project.platform)}`}
-                              >
-                                {project.platform}
-                              </Badge>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                    {filteredProjects.map((project) => (
+                      <ProjectCard 
+                        key={project.id}
+                        project={project}
+                        onSelect={handleProjectSelect}
+                      />
+                    ))}
                   </div>
                 )}
                 
@@ -543,23 +409,11 @@ const Index = () => {
                 ) : (
                   <div className="space-y-4">
                     {conversations.map((conversation) => (
-                      <Card key={conversation.id} className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-400"
-                            onClick={() => handleConversationSelect(conversation.id)}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="font-medium">{conversation.name || '未命名对话'}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                消息数量: {conversation.message_count}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                创建时间: {formatDate(conversation.created_at)}
-                              </p>
-                            </div>
-                            <Badge variant="outline">{conversation.message_count} 条消息</Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <ConversationCard 
+                        key={conversation.id}
+                        conversation={conversation}
+                        onSelect={handleConversationSelect}
+                      />
                     ))}
                   </div>
                 )}

@@ -18,7 +18,7 @@ export const projectService = {
     // Map database fields to expected component properties
     return (data || []).map(project => ({
       ...project,
-      description: project.path, // Use path as description fallback
+      description: project.path || 'No description', // Ensure always has a value
       lastUpdated: project.updated_at
     }));
   },
@@ -41,7 +41,7 @@ export const projectService = {
     return (data || []).map(conversation => ({
       ...conversation,
       title: conversation.name || 'Untitled Conversation',
-      tool: 'AI Assistant', // Default tool name
+      tool: 'cursor' as const, // Use specific literal type
       createdAt: conversation.created_at || conversation.created_timestamp
     }));
   },
@@ -110,7 +110,7 @@ export const projectService = {
     
     return {
       ...data,
-      description: data.path, // Use path as description fallback
+      description: data.path || 'No description', // Ensure always has a value
       lastUpdated: data.updated_at,
       conversations
     };

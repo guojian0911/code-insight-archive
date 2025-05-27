@@ -8,7 +8,7 @@ export interface Project {
   created_at: string;
   updated_at: string;
   // Add missing properties expected by components
-  description?: string;
+  description: string; // Make required instead of optional
   lastUpdated: string;
 }
 
@@ -24,7 +24,7 @@ export interface Conversation {
   updated_timestamp: string;
   // Add missing properties expected by components
   title: string;
-  tool: string;
+  tool: "cursor" | "augmentcode" | "cline" | "roocode"; // Use specific literal types
   createdAt: string;
 }
 

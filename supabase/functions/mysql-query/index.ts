@@ -26,7 +26,18 @@ serve(async (req) => {
   let mysqlClient;
 
   try {
-    const { action, table, limit = 50, offset = 0, project_name, conversation_id } = await req.json();
+    // Parse request body once and extract all needed parameters
+    const requestBody = await req.json();
+    const { 
+      action, 
+      table, 
+      limit = 50, 
+      offset = 0, 
+      project_name, 
+      conversation_id,
+      searchTerm,
+      searchType 
+    } = requestBody;
     
     // Initialize MySQL client
     console.log('Connecting to MySQL...');
@@ -123,7 +134,6 @@ serve(async (req) => {
         break;
 
       case 'search':
-        const { searchTerm, searchType } = await req.json();
         console.log(`Searching for: ${searchTerm} in ${searchType}`);
         
         let searchQuery;

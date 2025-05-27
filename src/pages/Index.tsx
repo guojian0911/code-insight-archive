@@ -1,96 +1,263 @@
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, MessageSquare, Search } from "lucide-react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, Calendar, MessageSquare, Code, Bot } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import ProjectList from '@/components/ProjectList';
+import ConversationList from '@/components/ConversationList';
+import MessageDetail from '@/components/MessageDetail';
+import SearchResults from '@/components/SearchResults';
+import { projectService } from '@/services/projectService';
+import { ProjectWithConversations, ConversationWithMessages } from '@/types/database';
 
 const Index = () => {
+  const [currentView, setCurrentView] = useState<'projects' | 'conversations' | 'messages' | 'search'>('projects');
+  const [projects, setProjects] = useState<ProjectWithConversations[]>([]);
+  const [selectedProject, setSelectedProject] = useState<ProjectWithConversations | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationWithMessages | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      const data = await projectService.getProjectsWithConversations();
+      setProjects(data);
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+      toast({
+        title: "加载失败",
+        description: "无法加载项目数据，请稍后重试",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProjectSelect = async (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setSelectedProject(project);
+      setCurrentView('conversations');
+    }
+  };
+
+  const handleConversationSelect = async (conversationId: string) => {
+    if (!selectedProject) return;
+    
+    try {
+      const conversation = selectedProject.conversations.find(c => c.id === conversationId);
+      if (conversation) {
+        const messages = await projectService.getConversationMessages(conversationId);
+        const conversationWithMessages: ConversationWithMessages = {
+          ...conversation,
+          messages
+        };
+        setSelectedConversation(conversationWithMessages);
+        setCurrentView('messages');
+      }
+    } catch (error) {
+      console.error('Failed to load conversation:', error);
+      toast({
+        title: "加载失败",
+        description: "无法加载对话消息，请稍后重试",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (query.trim()) {
+      setCurrentView('search');
+    } else {
+      setCurrentView('projects');
+    }
+  };
+
+  const handleBackToProjects = () => {
+    setCurrentView('projects');
+    setSelectedProject(null);
+    setSelectedConversation(null);
+  };
+
+  const handleBackToConversations = () => {
+    setCurrentView('conversations');
+    setSelectedConversation(null);
+  };
+
+  const renderBreadcrumb = () => {
+    return (
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
+        <button 
+          onClick={handleBackToProjects}
+          className="hover:text-primary transition-colors"
+        >
+          项目
+        </button>
+        {selectedProject && (
+          <>
+            <span>/</span>
+            <button 
+              onClick={handleBackToConversations}
+              className="hover:text-primary transition-colors"
+            >
+              {selectedProject.name}
+            </button>
+          </>
+        )}
+        {selectedConversation && (
+          <>
+            <span>/</span>
+            <span className="text-foreground">{selectedConversation.name}</span>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const totalConversations = projects.reduce((sum, p) => sum + p.conversations.length, 0);
+  const platformCount = new Set(projects.map(p => p.platform)).size;
+  const thisMonthProjects = projects.filter(p => 
+    new Date(p.updated_at).getMonth() === new Date().getMonth()
+  ).length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-muted-foreground">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-6">
-            聊天记录管理系统
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+            AI编程助手聊天记录管理平台
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            高效管理和搜索您的聊天记录，支持多项目组织和智能检索
+          <p className="text-muted-foreground text-lg">
+            统一管理Cursor、AugmentCode、Cline等AI编程工具的对话历史
           </p>
         </div>
 
-        {/* Feature Cards */}
-        <div className="grid md:grid-cols-3 gap-8 mb-12">
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center text-blue-600">
-                <Search className="h-6 w-6 mr-2" />
-                智能搜索
-              </CardTitle>
-              <CardDescription>
-                快速搜索聊天记录内容，支持关键词和上下文匹配
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                强大的搜索功能帮助您快速找到需要的聊天记录和对话内容
-              </p>
-            </CardContent>
-          </Card>
+        {/* Search Bar */}
+        <Card className="mb-6 shadow-sm hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索项目、对话或消息内容..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10 h-12 text-base"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center text-green-600">
-                <MessageSquare className="h-6 w-6 mr-2" />
-                对话管理
-              </CardTitle>
-              <CardDescription>
-                按项目和时间线组织您的对话记录
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                清晰的对话结构让您轻松浏览和管理不同项目的聊天记录
-              </p>
-            </CardContent>
-          </Card>
+        {/* Breadcrumb */}
+        {currentView !== 'projects' && currentView !== 'search' && renderBreadcrumb()}
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center text-purple-600">
-                <Database className="h-6 w-6 mr-2" />
-                数据迁移
-              </CardTitle>
-              <CardDescription>
-                从 MySQL 数据库迁移聊天记录到 Supabase
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                安全可靠的数据迁移工具，支持批量导入和进度监控
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Stats Cards */}
+        {currentView === 'projects' && !searchQuery && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Code className="h-4 w-4 mr-2" />
+                  总项目数
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{projects.length}</div>
+              </CardContent>
+            </Card>
 
-        {/* Action Buttons */}
-        <div className="text-center space-y-4">
-          <div className="space-x-4">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-              开始搜索
-            </Button>
-            <Button size="lg" variant="outline">
-              浏览项目
-            </Button>
+            <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  总对话数
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalConversations}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Bot className="h-4 w-4 mr-2" />
+                  AI工具类型
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{platformCount}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  本月活跃
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{thisMonthProjects}</div>
+              </CardContent>
+            </Card>
           </div>
-          
-          <div className="pt-4">
-            <Link to="/migration">
-              <Button size="lg" variant="secondary" className="bg-purple-100 hover:bg-purple-200 text-purple-700">
-                <Database className="h-5 w-5 mr-2" />
-                数据迁移管理
-              </Button>
-            </Link>
-          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="space-y-6">
+          {currentView === 'projects' && !searchQuery && (
+            <ProjectList 
+              projects={projects} 
+              onProjectSelect={handleProjectSelect}
+            />
+          )}
+
+          {currentView === 'conversations' && selectedProject && (
+            <ConversationList
+              project={selectedProject}
+              onConversationSelect={handleConversationSelect}
+              selectedTools={selectedTools}
+              onToolsChange={setSelectedTools}
+            />
+          )}
+
+          {currentView === 'messages' && selectedConversation && (
+            <MessageDetail
+              conversation={selectedConversation}
+            />
+          )}
+
+          {currentView === 'search' && searchQuery && (
+            <SearchResults
+              query={searchQuery}
+              projects={projects}
+              onProjectSelect={handleProjectSelect}
+              onConversationSelect={handleConversationSelect}
+            />
+          )}
         </div>
       </div>
     </div>

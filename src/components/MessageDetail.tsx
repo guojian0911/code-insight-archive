@@ -4,7 +4,6 @@ import { Calendar, User, Bot, Copy, Check } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Conversation } from '@/data/mockData';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -79,51 +78,6 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
         </code>
       );
     },
-    // Table components
-    table: ({ children }: any) => (
-      <div className="my-4 overflow-x-auto">
-        <Table className="border">
-          {children}
-        </Table>
-      </div>
-    ),
-    thead: ({ children }: any) => <TableHeader>{children}</TableHeader>,
-    tbody: ({ children }: any) => <TableBody>{children}</TableBody>,
-    tr: ({ children }: any) => <TableRow>{children}</TableRow>,
-    th: ({ children }: any) => (
-      <TableHead className="border-r border-b font-semibold text-left">
-        {children}
-      </TableHead>
-    ),
-    td: ({ children }: any) => (
-      <TableCell className="border-r border-b">
-        {children}
-      </TableCell>
-    ),
-    // Image component with size adjustment
-    img: ({ src, alt, title }: any) => (
-      <div className="my-4 flex justify-center">
-        <img
-          src={src}
-          alt={alt || ''}
-          title={title}
-          className="max-w-full h-auto rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-          style={{ maxHeight: '500px' }}
-          onClick={(e) => {
-            const img = e.target as HTMLImageElement;
-            if (img.style.maxWidth === '100%' || !img.style.maxWidth) {
-              img.style.maxWidth = 'none';
-              img.style.maxHeight = 'none';
-              img.style.cursor = 'zoom-out';
-            } else {
-              img.style.maxWidth = '100%';
-              img.style.maxHeight = '500px';
-              img.style.cursor = 'zoom-in';
-            }
-          }}
-        />
-      </div>
-    ),
     h1: ({ children }: any) => <h1 className="text-2xl font-bold mt-6 mb-4">{children}</h1>,
     h2: ({ children }: any) => <h2 className="text-xl font-semibold mt-5 mb-3">{children}</h2>,
     h3: ({ children }: any) => <h3 className="text-lg font-medium mt-4 mb-2">{children}</h3>,

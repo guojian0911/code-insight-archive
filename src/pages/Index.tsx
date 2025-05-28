@@ -241,28 +241,13 @@ const Index = () => {
   const formatConversationForDetail = () => {
     if (!selectedConversation || !messages.length) return null;
     
-    const platformToTool = (platform: string): 'cursor' | 'augmentcode' | 'cline' | 'roocode' => {
-      const normalizedPlatform = platform.toLowerCase();
-      switch (normalizedPlatform) {
-        case 'cursor':
-        case 'cursor-ai':
-          return 'cursor';
-        case 'augmentcode':
-        case 'augment-code':
-          return 'augmentcode';
-        case 'cline':
-          return 'cline';
-        case 'roocode':
-          return 'roocode';
-        default:
-          return 'cursor';
-      }
-    };
+    // Use the actual platform from selectedProject, not a hardcoded conversion
+    const actualTool = selectedProject?.platform?.toLowerCase() || 'cursor';
     
     return {
       id: selectedConversation.id,
       title: selectedConversation.name || '未命名对话',
-      tool: platformToTool(selectedProject?.platform || 'cursor'),
+      tool: actualTool,
       createdAt: selectedConversation.created_at,
       messages: messages.map(msg => ({
         id: msg.id.toString(),

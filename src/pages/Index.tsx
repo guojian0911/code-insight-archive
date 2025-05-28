@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Database, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +11,7 @@ import StatsCards from '@/components/StatsCards';
 import ProjectCard from '@/components/ProjectCard';
 import ConversationCard from '@/components/ConversationCard';
 import SearchBar from '@/components/SearchBar';
+import NavigationHeader from '@/components/NavigationHeader';
 
 interface MySQLProject {
   id: number;
@@ -308,6 +308,15 @@ const Index = () => {
           </div>
         </div>
 
+        {/* Navigation Header */}
+        <NavigationHeader
+          currentView={currentView}
+          selectedProject={selectedProject}
+          selectedConversation={selectedConversation}
+          onBackToProjects={handleBackToProjects}
+          onBackToConversations={handleBackToConversations}
+        />
+
         {/* Search Bar - Only show on projects view */}
         {currentView === 'projects' && (
           <SearchBar 
@@ -316,9 +325,6 @@ const Index = () => {
             resultCount={filteredProjects.length}
           />
         )}
-
-        {/* Breadcrumb */}
-        {currentView !== 'projects' && renderBreadcrumb()}
 
         {/* Stats Cards - Only show on projects view and when stats are available */}
         {currentView === 'projects' && (

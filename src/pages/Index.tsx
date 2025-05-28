@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Database, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -273,6 +272,12 @@ const Index = () => {
     };
   };
 
+  const getProjectConversationCount = (projectName: string) => {
+    // This would ideally come from the backend, but for now we'll use 0 as placeholder
+    // You can modify this to fetch actual conversation counts if needed
+    return 0;
+  };
+
   if (loading && !allProjects.length) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
@@ -357,6 +362,7 @@ const Index = () => {
                         key={project.id}
                         project={project}
                         onSelect={handleProjectSelect}
+                        conversationCount={getProjectConversationCount(project.name)}
                       />
                     ))}
                   </div>

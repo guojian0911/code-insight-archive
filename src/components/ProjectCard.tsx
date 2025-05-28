@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FolderOpen, Calendar } from 'lucide-react';
+import { FolderOpen, Calendar, MessageSquare } from 'lucide-react';
 
 interface MySQLProject {
   id: number;
@@ -11,14 +12,26 @@ interface MySQLProject {
   path: string;
   created_at: string;
   updated_at: string;
+  conversations?: MySQLConversation[];
+}
+
+interface MySQLConversation {
+  id: string;
+  workspace_id: string;
+  project_name: string;
+  name: string;
+  created_at: string;
+  last_interacted_at: string;
+  message_count: number;
 }
 
 interface ProjectCardProps {
   project: MySQLProject;
   onSelect: (projectName: string) => void;
+  conversationCount?: number;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
+const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, conversationCount = 0 }) => {
   const formatDate = (dateString: string) => {
     // 直接解析数据库时间字符串，不进行时区转换
     const date = dateString.replace(' ', 'T'); // 转换为ISO格式
@@ -28,11 +41,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
     const year = parsedDate.getUTCFullYear();
     const month = (parsedDate.getUTCMonth() + 1).toString().padStart(2, '0');
     const day = parsedDate.getUTCDate().toString().padStart(2, '0');
-    const hours = parsedDate.getUTCHours().toString().padStart(2, '0');
-    const minutes = parsedDate.getUTCMinutes().toString().padStart(2, '0');
-    const seconds = parsedDate.getUTCSeconds().toString().padStart(2, '0');
     
-    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+    return `${year}年${month}月${day}日`;
   };
 
   const truncateText = (text: string, maxLength: number) => {
@@ -45,16 +55,16 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
     switch (normalizedPlatform) {
       case 'cursor':
       case 'cursor-ai':
-        return 'border-blue-300 text-blue-600 bg-blue-50';
+        return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'augmentcode':
       case 'augment-code':
-        return 'border-green-300 text-green-600 bg-green-50';
+        return 'bg-green-100 text-green-700 border-green-200';
       case 'cline':
-        return 'border-purple-300 text-purple-600 bg-purple-50';
+        return 'bg-purple-100 text-purple-700 border-purple-200';
       case 'roocode':
-        return 'border-orange-300 text-orange-600 bg-orange-50';
+        return 'bg-orange-100 text-orange-700 border-orange-200';
       default:
-        return 'border-gray-300 text-gray-600 bg-gray-50';
+        return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
 
@@ -78,42 +88,53 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
 
   return (
     <Card 
-      className={`cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group border-l-4 ${getBorderColor(project.platform)} shadow-sm`}
+      className={`cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group border-l-4 ${getBorderColor(project.platform)} shadow-sm bg-white`}
       onClick={() => onSelect(project.name)}
     >
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-lg group-hover:text-blue-600 transition-colors flex items-center">
+            <CardTitle className="text-lg font-semibold group-hover:text-blue-600 transition-colors flex items-center mb-2">
               <FolderOpen className="h-5 w-5 mr-2 text-blue-500" />
               {project.name}
             </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-              {truncateText(project.path, 40)}
+            <p className="text-sm text-gray-600 mb-3">
+              {project.path.split('/').pop() || project.path}
             </p>
           </div>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          工作区: {truncateText(project.workspace_id, 20)}
-        </p>
-
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center text-muted-foreground">
+      <CardContent className="space-y-4 pt-0">
+        {/* 对话数量和时间 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center text-sm text-gray-600">
+            <MessageSquare className="h-4 w-4 mr-1" />
+            {conversationCount} 个对话
+          </div>
+          <div className="flex items-center text-sm text-gray-500">
             <Calendar className="h-4 w-4 mr-1" />
             {formatDate(project.updated_at)}
           </div>
         </div>
 
+        {/* 工作区信息 */}
+        <div className="text-xs text-gray-500">
+          工作区: {truncateText(project.workspace_id, 30)}
+        </div>
+
+        {/* 路径信息 */}
+        <div className="text-xs text-gray-500">
+          路径: {truncateText(project.path, 50)}
+        </div>
+
         {/* Tool Badge */}
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-2">
           <Badge 
             variant="outline" 
-            className={`text-xs ${getToolBadgeColor(project.platform)}`}
+            className={`text-xs font-medium px-3 py-1 rounded-full ${getToolBadgeColor(project.platform)}`}
           >
-            {project.platform}
+            {project.platform} (1)
           </Badge>
         </div>
       </CardContent>

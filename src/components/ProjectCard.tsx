@@ -58,7 +58,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, conversati
         return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'augmentcode':
       case 'augment-code':
-        return 'bg-green-100 text-green-700 border-green-200';
+        return 'bg-gray-100 text-gray-700 border-gray-300';
       case 'cline':
         return 'bg-purple-100 text-purple-700 border-purple-200';
       case 'roocode':
@@ -68,27 +68,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, conversati
     }
   };
 
-  const getBorderColor = (platform: string) => {
-    const normalizedPlatform = platform.toLowerCase();
-    switch (normalizedPlatform) {
-      case 'cursor':
-      case 'cursor-ai':
-        return 'border-l-blue-500';
-      case 'augmentcode':
-      case 'augment-code':
-        return 'border-l-green-500';
-      case 'cline':
-        return 'border-l-purple-500';
-      case 'roocode':
-        return 'border-l-orange-500';
-      default:
-        return 'border-l-gray-500';
-    }
-  };
-
   return (
     <Card 
-      className={`cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group border-l-4 ${getBorderColor(project.platform)} shadow-sm bg-white`}
+      className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group shadow-sm bg-white"
       onClick={() => onSelect(project.name)}
     >
       <CardHeader className="pb-4">
@@ -98,9 +80,6 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, conversati
               <FolderOpen className="h-5 w-5 mr-2 text-blue-500" />
               {project.name}
             </CardTitle>
-            <p className="text-sm text-gray-600 mb-3">
-              {project.path.split('/').pop() || project.path}
-            </p>
           </div>
         </div>
       </CardHeader>

@@ -62,6 +62,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<MySQLStats | null>(null);
   const [statsLoaded, setStatsLoaded] = useState(false);
+  const [projectConversationCounts, setProjectConversationCounts] = useState<Record<string, number>>({});
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -105,6 +106,25 @@ const Index = () => {
       const projectsData = await queryMySQL('get_projects', { limit: 100, offset: 0 });
       setAllProjects(projectsData.data);
       setFilteredProjects(projectsData.data);
+      
+      // Load conversation counts for each project
+      const conversationCounts: Record<string, number> = {};
+      for (const project of projectsData.data) {
+        try {
+          const convData = await queryMySQL('get_conversations', { 
+            project_name: project.name,
+            limit: 1000,
+            offset: 0
+          });
+          // 只计算消息数量大于0的对话
+          const validConversations = convData.data.filter((conv: MySQLConversation) => conv.message_count > 0);
+          conversationCounts[project.name] = validConversations.length;
+        } catch (error) {
+          console.error(`Failed to load conversations for project ${project.name}:`, error);
+          conversationCounts[project.name] = 0;
+        }
+      }
+      setProjectConversationCounts(conversationCounts);
       
       // Load stats only once if not already loaded
       if (!statsLoaded) {
@@ -273,9 +293,7 @@ const Index = () => {
   };
 
   const getProjectConversationCount = (projectName: string) => {
-    // This would ideally come from the backend, but for now we'll use 0 as placeholder
-    // You can modify this to fetch actual conversation counts if needed
-    return 0;
+    return projectConversationCounts[projectName] || 0;
   };
 
   if (loading && !allProjects.length) {

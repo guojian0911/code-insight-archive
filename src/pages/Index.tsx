@@ -146,7 +146,9 @@ const Index = () => {
           limit: 50,
           offset: 0
         });
-        setConversations(data.data);
+        // 过滤掉消息数量为 0 的对话
+        const filteredConversations = data.data.filter((conv: MySQLConversation) => conv.message_count > 0);
+        setConversations(filteredConversations);
         setCurrentView('conversations');
       }
     } catch (error) {

@@ -20,7 +20,19 @@ interface ConversationCardProps {
 
 const ConversationCard: React.FC<ConversationCardProps> = ({ conversation, onSelect }) => {
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('zh-CN');
+    // 直接解析数据库时间字符串，不进行时区转换
+    const date = dateString.replace(' ', 'T'); // 转换为ISO格式
+    const parsedDate = new Date(date);
+    
+    // 手动格式化，避免时区转换
+    const year = parsedDate.getUTCFullYear();
+    const month = (parsedDate.getUTCMonth() + 1).toString().padStart(2, '0');
+    const day = parsedDate.getUTCDate().toString().padStart(2, '0');
+    const hours = parsedDate.getUTCHours().toString().padStart(2, '0');
+    const minutes = parsedDate.getUTCMinutes().toString().padStart(2, '0');
+    const seconds = parsedDate.getUTCSeconds().toString().padStart(2, '0');
+    
+    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
   };
 
   return (

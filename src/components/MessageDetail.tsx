@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Calendar, User, Bot, Copy, Check } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,8 +27,9 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
     default: { color: 'gray', label: 'AI助手' }
   };
 
-  // Get config with fallback to default
-  const config = toolConfig[conversation.tool] || toolConfig.default;
+  // Normalize tool name and get config with fallback to default
+  const normalizedTool = conversation.tool?.toLowerCase() || 'default';
+  const config = toolConfig[normalizedTool as keyof typeof toolConfig] || toolConfig.default;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('zh-CN', {

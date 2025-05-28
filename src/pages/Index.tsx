@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Database, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -241,13 +242,30 @@ const Index = () => {
   const formatConversationForDetail = () => {
     if (!selectedConversation || !messages.length) return null;
     
-    // Use the actual platform from selectedProject, not a hardcoded conversion
-    const actualTool = selectedProject?.platform?.toLowerCase() || 'cursor';
+    // Map platform to the expected tool type
+    const platformToTool = (platform: string): 'cursor' | 'augmentcode' | 'cline' | 'roocode' => {
+      const normalizedPlatform = platform.toLowerCase();
+      switch (normalizedPlatform) {
+        case 'cursor':
+        case 'cursor-ai':
+          return 'cursor';
+        case 'augmentcode':
+        case 'augment-code':
+        case 'augment_code':
+          return 'augmentcode';
+        case 'cline':
+          return 'cline';
+        case 'roocode':
+          return 'roocode';
+        default:
+          return 'cursor';
+      }
+    };
     
     return {
       id: selectedConversation.id,
       title: selectedConversation.name || '未命名对话',
-      tool: actualTool,
+      tool: platformToTool(selectedProject?.platform || 'cursor'),
       createdAt: selectedConversation.created_at,
       messages: messages.map(msg => ({
         id: msg.id.toString(),

@@ -10,6 +10,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useState } from 'react';
 import MermaidChart from './MermaidChart';
+import remarkGfm from 'remark-gfm';
 
 interface MessageDetailProps {
   conversation: Conversation;
@@ -17,6 +18,7 @@ interface MessageDetailProps {
 
 const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   const toolConfig = {
     cursor: { color: 'blue', label: 'Cursor' },
@@ -52,31 +54,106 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
     }
   };
 
+  const copyCodeToClipboard = async (code: string, codeId: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCodeId(codeId);
+      setTimeout(() => setCopiedCodeId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy code: ', err);
+    }
+  };
+
+  // 生成稳定的代码块ID
+  const generateCodeId = (content: string, language: string) => {
+    // 简单的字符串hash函数
+    let hash = 0;
+    const str = content + language;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 转换为32位整数
+    }
+    return `code-${Math.abs(hash).toString(36)}`;
+  };
+
   // 扩展的 Markdown 组件配置 - 支持更多富文本功能
   const MarkdownComponents = {
     // 代码块处理 (支持 Mermaid 图表)
     code({ node, inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '');
       const language = match ? match[1] : '';
+      const codeContent = String(children).replace(/\n$/, '');
 
       // 处理 Mermaid 图表
       if (!inline && language === 'mermaid') {
-        const chartCode = String(children).replace(/\n$/, '');
-        return <MermaidChart chart={chartCode} />;
+        return <MermaidChart chart={codeContent} />;
       }
 
       if (!inline && language) {
+        const codeId = generateCodeId(codeContent, language);
+
         return (
-          <div className="relative my-4">
-            <SyntaxHighlighter
-              {...props}
-              style={oneDark}
-              language={language}
-              PreTag="div"
-              className="rounded-lg"
-            >
-              {String(children).replace(/\n$/, '')}
-            </SyntaxHighlighter>
+          <div className="relative my-4 group border border-gray-700 rounded-lg overflow-hidden bg-gray-900">
+            {/* 代码块头部 */}
+            <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
+              {/* 语言标签 */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-300">
+                  {language}
+                </span>
+              </div>
+
+              {/* 复制按钮 */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => copyCodeToClipboard(codeContent, codeId)}
+                className="h-7 px-2 text-xs opacity-70 hover:opacity-100 transition-opacity bg-transparent hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-600 hover:border-gray-500"
+                title="复制代码"
+              >
+                {copiedCodeId === codeId ? (
+                  <>
+                    <Check className="h-3 w-3 mr-1 text-green-400" />
+                    <span className="text-green-400">已复制</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3 w-3 mr-1" />
+                    <span>复制</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* 代码内容 */}
+            <div className="relative overflow-hidden">
+              <SyntaxHighlighter
+                {...props}
+                style={oneDark}
+                language={language}
+                PreTag="div"
+                showLineNumbers={false}
+                wrapLines={false}
+                customStyle={{
+                  background: 'transparent',
+                  padding: '1rem',
+                  margin: 0,
+                  fontSize: '0.875rem',
+                  lineHeight: '1.5',
+                  border: 'none',
+                  borderRadius: 0
+                }}
+                codeTagProps={{
+                  style: {
+                    background: 'transparent',
+                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
+                  }
+                }}
+              >
+                {codeContent}
+              </SyntaxHighlighter>
+            </div>
           </div>
         );
       }
@@ -140,22 +217,40 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
 
     // 表格组件 (需要 remark-gfm 插件)
     table: ({ children }: any) => (
-      <div className="overflow-x-auto my-4">
-        <table className="min-w-full border-collapse border border-gray-300 rounded-lg">
-          {children}
-        </table>
+      <div className="overflow-x-auto my-6">
+        <div className="inline-block min-w-full align-middle">
+          <div className="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200">
+              {children}
+            </table>
+          </div>
+        </div>
       </div>
     ),
-    thead: ({ children }: any) => <thead className="bg-gray-50">{children}</thead>,
-    tbody: ({ children }: any) => <tbody>{children}</tbody>,
-    tr: ({ children }: any) => <tr className="border-b border-gray-200">{children}</tr>,
+    thead: ({ children }: any) => (
+      <thead className="bg-gray-50">
+        {children}
+      </thead>
+    ),
+    tbody: ({ children }: any) => (
+      <tbody className="bg-white divide-y divide-gray-200">
+        {children}
+      </tbody>
+    ),
+    tr: ({ children }: any) => (
+      <tr className="hover:bg-gray-50 transition-colors">
+        {children}
+      </tr>
+    ),
     th: ({ children }: any) => (
-      <th className="px-4 py-2 text-left font-semibold border-r border-gray-300 bg-gray-100">
+      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
         {children}
       </th>
     ),
     td: ({ children }: any) => (
-      <td className="px-4 py-2 border-r border-gray-300">{children}</td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+        {children}
+      </td>
     ),
 
     // 引用块
@@ -275,9 +370,7 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
               }`}>
                 <ReactMarkdown
                   components={MarkdownComponents}
-                  // 启用插件支持 (需要安装对应依赖)
-                  // remarkPlugins={[remarkGfm, remarkMath]}
-                  // rehypePlugins={[rehypeKatex]}
+                  remarkPlugins={[remarkGfm]}
                 >
                   {message.content}
                 </ReactMarkdown>

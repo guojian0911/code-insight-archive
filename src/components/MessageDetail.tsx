@@ -159,41 +159,41 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
       }
 
       return (
-        <code className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono emoji-support" {...props}>
+        <code className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono" {...props}>
           {children}
         </code>
       );
     },
 
-    // 标题组件 - 添加emoji支持
-    h1: ({ children }: any) => <h1 className="text-2xl font-bold mt-6 mb-4 border-b pb-2 emoji-support">{children}</h1>,
-    h2: ({ children }: any) => <h2 className="text-xl font-semibold mt-5 mb-3 emoji-support">{children}</h2>,
-    h3: ({ children }: any) => <h3 className="text-lg font-medium mt-4 mb-2 emoji-support">{children}</h3>,
-    h4: ({ children }: any) => <h4 className="text-base font-medium mt-3 mb-2 emoji-support">{children}</h4>,
-    h5: ({ children }: any) => <h5 className="text-sm font-medium mt-2 mb-1 emoji-support">{children}</h5>,
-    h6: ({ children }: any) => <h6 className="text-xs font-medium mt-2 mb-1 text-muted-foreground emoji-support">{children}</h6>,
+    // 标题组件
+    h1: ({ children }: any) => <h1 className="text-2xl font-bold mt-6 mb-4 border-b pb-2">{children}</h1>,
+    h2: ({ children }: any) => <h2 className="text-xl font-semibold mt-5 mb-3">{children}</h2>,
+    h3: ({ children }: any) => <h3 className="text-lg font-medium mt-4 mb-2">{children}</h3>,
+    h4: ({ children }: any) => <h4 className="text-base font-medium mt-3 mb-2">{children}</h4>,
+    h5: ({ children }: any) => <h5 className="text-sm font-medium mt-2 mb-1">{children}</h5>,
+    h6: ({ children }: any) => <h6 className="text-xs font-medium mt-2 mb-1 text-muted-foreground">{children}</h6>,
 
-    // 段落和文本 - 添加emoji支持
-    p: ({ children }: any) => <p className="mb-3 leading-relaxed emoji-support">{children}</p>,
-    strong: ({ children }: any) => <strong className="font-semibold emoji-support">{children}</strong>,
-    em: ({ children }: any) => <em className="italic emoji-support">{children}</em>,
-    del: ({ children }: any) => <del className="line-through text-muted-foreground emoji-support">{children}</del>,
+    // 段落和文本
+    p: ({ children }: any) => <p className="mb-3 leading-relaxed">{children}</p>,
+    strong: ({ children }: any) => <strong className="font-semibold">{children}</strong>,
+    em: ({ children }: any) => <em className="italic">{children}</em>,
+    del: ({ children }: any) => <del className="line-through text-muted-foreground">{children}</del>,
 
-    // 列表组件 (支持任务列表) - 添加emoji支持
+    // 列表组件 (支持任务列表)
     ul: ({ children, className }: any) => (
-      <ul className={`list-disc list-inside mb-3 space-y-1 emoji-support ${className?.includes('contains-task-list') ? 'list-none' : ''}`}>
+      <ul className={`list-disc list-inside mb-3 space-y-1 ${className?.includes('contains-task-list') ? 'list-none' : ''}`}>
         {children}
       </ul>
     ),
     ol: ({ children }: any) => (
-      <ol className="list-decimal list-outside mb-3 space-y-2 pl-6 emoji-support">
+      <ol className="list-decimal list-outside mb-3 space-y-2 pl-6">
         {children}
       </ol>
     ),
     li: ({ children, className }: any) => {
       const isTaskItem = className?.includes('task-list-item');
       return (
-        <li className={`emoji-support ${isTaskItem ? 'list-none flex items-start space-x-2' : 'mb-2'}`}>
+        <li className={`${isTaskItem ? 'list-none flex items-start space-x-2' : 'mb-2'}`}>
           {children}
         </li>
       );
@@ -215,12 +215,12 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
       return <input type={type} {...props} />;
     },
 
-    // 表格组件 (需要 remark-gfm 插件) - 添加emoji支持
+    // 表格组件 (需要 remark-gfm 插件)
     table: ({ children }: any) => (
       <div className="overflow-x-auto my-6">
         <div className="inline-block min-w-full align-middle">
           <div className="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 emoji-support">
+            <table className="min-w-full divide-y divide-gray-200">
               {children}
             </table>
           </div>
@@ -228,43 +228,43 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
       </div>
     ),
     thead: ({ children }: any) => (
-      <thead className="bg-gray-50 emoji-support">
+      <thead className="bg-gray-50">
         {children}
       </thead>
     ),
     tbody: ({ children }: any) => (
-      <tbody className="bg-white divide-y divide-gray-200 emoji-support">
+      <tbody className="bg-white divide-y divide-gray-200">
         {children}
       </tbody>
     ),
     tr: ({ children }: any) => (
-      <tr className="hover:bg-gray-50 transition-colors emoji-support">
+      <tr className="hover:bg-gray-50 transition-colors">
         {children}
       </tr>
     ),
     th: ({ children }: any) => (
-      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 emoji-support">
+      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
         {children}
       </th>
     ),
     td: ({ children }: any) => (
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 emoji-support">
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
         {children}
       </td>
     ),
 
-    // 引用块 - 添加emoji支持
+    // 引用块
     blockquote: ({ children }: any) => (
-      <blockquote className="border-l-4 border-blue-200 pl-4 italic my-4 text-muted-foreground bg-blue-50 py-2 rounded-r emoji-support">
+      <blockquote className="border-l-4 border-blue-200 pl-4 italic my-4 text-muted-foreground bg-blue-50 py-2 rounded-r">
         {children}
       </blockquote>
     ),
 
-    // 链接 - 添加emoji支持
+    // 链接
     a: ({ href, children }: any) => (
       <a
         href={href}
-        className="text-blue-600 hover:text-blue-800 hover:underline transition-colors emoji-support"
+        className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -283,7 +283,7 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
           {...props}
         />
         {alt && (
-          <p className="text-sm text-gray-500 text-center mt-2 italic emoji-support">
+          <p className="text-sm text-gray-500 text-center mt-2 italic">
             {alt}
           </p>
         )}
@@ -300,19 +300,19 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
       <Card className="p-6">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-semibold mb-2 emoji-support">{conversation.title}</h2>
+            <h2 className="text-2xl font-semibold mb-2">{conversation.title}</h2>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <Badge 
                 variant="outline" 
-                className={`border-${config.color}-300 text-${config.color}-600 emoji-support`}
+                className={`border-${config.color}-300 text-${config.color}-600`}
               >
                 {config.label}
               </Badge>
-              <span className="flex items-center emoji-support">
+              <span className="flex items-center">
                 <Calendar className="h-4 w-4 mr-1" />
                 {formatDate(conversation.createdAt)}
               </span>
-              <span className="emoji-support">{conversation.messages.length} 条消息</span>
+              <span>{conversation.messages.length} 条消息</span>
             </div>
           </div>
         </div>
@@ -336,17 +336,17 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
                   {message.role === 'user' ? (
                     <div className="flex items-center gap-2 text-blue-600">
                       <User className="h-5 w-5" />
-                      <span className="font-medium emoji-support">用户</span>
+                      <span className="font-medium">用户</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-slate-600">
                       <Bot className="h-5 w-5" />
-                      <span className="font-medium emoji-support">AI助手</span>
+                      <span className="font-medium">AI助手</span>
                     </div>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground emoji-support">
+                  <span className="text-sm text-muted-foreground">
                     {formatDate(message.timestamp)}
                   </span>
                   <Button
@@ -365,7 +365,7 @@ const MessageDetail: React.FC<MessageDetailProps> = ({ conversation }) => {
               </div>
 
               {/* Message Content */}
-              <div className={`prose prose-sm max-w-none emoji-support ${
+              <div className={`prose prose-sm max-w-none ${
                 message.role === 'user' ? 'prose-blue' : 'prose-slate'
               }`}>
                 <ReactMarkdown

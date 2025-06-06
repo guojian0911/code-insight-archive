@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,11 +21,11 @@ interface ProjectCardProps {
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
   const formatDate = (dateString: string) => {
-    // 直接解析数据库时间字符串，不进行时区转换
-    const date = dateString.replace(' ', 'T'); // 转换为ISO格式
+    // Direct parsing of database time string without timezone conversion
+    const date = dateString.replace(' ', 'T'); // Convert to ISO format
     const parsedDate = new Date(date);
     
-    // 手动格式化，避免时区转换
+    // Manual formatting to avoid timezone conversion
     const year = parsedDate.getUTCFullYear();
     const month = (parsedDate.getUTCMonth() + 1).toString().padStart(2, '0');
     const day = parsedDate.getUTCDate().toString().padStart(2, '0');
@@ -40,25 +41,28 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
     return text.substring(0, maxLength) + '...';
   };
 
-  const getToolBadgeColor = (platform: string) => {
+  // Enhanced tool badge styling with better contrast
+  const getToolBadgeStyles = (platform: string) => {
     const normalizedPlatform = platform.toLowerCase();
     switch (normalizedPlatform) {
       case 'cursor':
       case 'cursor-ai':
-        return 'border-blue-300 text-blue-600 bg-blue-50';
+        return 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100';
       case 'augmentcode':
       case 'augment-code':
-        return 'border-green-300 text-green-600 bg-green-50';
+      case 'augment_code':
+        return 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100';
       case 'cline':
-        return 'border-purple-300 text-purple-600 bg-purple-50';
+        return 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100';
       case 'roocode':
-        return 'border-orange-300 text-orange-600 bg-orange-50';
+        return 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100';
       default:
-        return 'border-gray-300 text-gray-600 bg-gray-50';
+        return 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100';
     }
   };
 
-  const getBorderColor = (platform: string) => {
+  // Enhanced border accent color
+  const getBorderAccentColor = (platform: string) => {
     const normalizedPlatform = platform.toLowerCase();
     switch (normalizedPlatform) {
       case 'cursor':
@@ -66,6 +70,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
         return 'border-l-blue-500';
       case 'augmentcode':
       case 'augment-code':
+      case 'augment_code':
         return 'border-l-green-500';
       case 'cline':
         return 'border-l-purple-500';
@@ -78,40 +83,51 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
 
   return (
     <Card 
-      className={`cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group border-l-4 ${getBorderColor(project.platform)} shadow-sm`}
+      className={`ui-card cursor-pointer group border-l-4 ${getBorderAccentColor(project.platform)} transform hover:scale-105 transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2`}
       onClick={() => onSelect(project.name)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(project.name);
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`选择项目 ${project.name}`}
     >
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 card-spacing">
         <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg group-hover:text-blue-600 transition-colors flex items-center">
-              <FolderOpen className="h-5 w-5 mr-2 text-blue-500" />
-              {project.name}
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-lg text-foreground group-hover:text-primary transition-colors duration-200 flex items-center">
+              <FolderOpen className="h-5 w-5 mr-2 text-primary flex-shrink-0" aria-hidden="true" />
+              <span className="truncate">{project.name}</span>
             </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+            <p className="text-sm text-muted-foreground mt-1 truncate" title={project.path}>
               {truncateText(project.path, 40)}
             </p>
           </div>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-6 pb-6">
+        {/* Workspace info with proper contrast */}
         <p className="text-sm text-muted-foreground">
-          工作区: {truncateText(project.workspace_id, 20)}
+          <span className="font-medium text-foreground">工作区:</span> {truncateText(project.workspace_id, 20)}
         </p>
 
+        {/* Date and status with consistent styling */}
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center text-muted-foreground">
-            <Calendar className="h-4 w-4 mr-1" />
-            {formatDate(project.updated_at)}
+            <Calendar className="h-4 w-4 mr-1 flex-shrink-0" aria-hidden="true" />
+            <span>{formatDate(project.updated_at)}</span>
           </div>
         </div>
 
-        {/* Tool Badge */}
-        <div className="flex flex-wrap gap-1">
+        {/* Enhanced tool badge with better accessibility */}
+        <div className="flex flex-wrap gap-2">
           <Badge 
             variant="outline" 
-            className={`text-xs ${getToolBadgeColor(project.platform)}`}
+            className={`ui-badge text-xs font-medium transition-colors duration-200 ${getToolBadgeStyles(project.platform)}`}
           >
             {project.platform}
           </Badge>

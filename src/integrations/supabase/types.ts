@@ -80,6 +80,132 @@ export type Database = {
         }
         Relationships: []
       }
+      cursor_categories: {
+        Row: {
+          color: string
+          created_at: string | null
+          description: string
+          icon: string
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          color: string
+          created_at?: string | null
+          description: string
+          icon: string
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          description?: string
+          icon?: string
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      cursor_rule_favorites: {
+        Row: {
+          created_at: string | null
+          id: string
+          rule_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          rule_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          rule_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      cursor_rule_files: {
+        Row: {
+          content: string
+          created_at: string | null
+          file_order: number | null
+          id: string
+          language: string
+          name: string
+          path: string
+          rule_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          file_order?: number | null
+          id?: string
+          language?: string
+          name: string
+          path: string
+          rule_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          file_order?: number | null
+          id?: string
+          language?: string
+          name?: string
+          path?: string
+          rule_id?: string | null
+        }
+        Relationships: []
+      }
+      cursor_rules: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          description: string
+          display_name: string
+          file_count: number | null
+          id: string
+          name: string
+          popularity: number | null
+          tags: string[] | null
+          updated_at: string | null
+          view_count: number | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          description: string
+          display_name: string
+          file_count?: number | null
+          id?: string
+          name: string
+          popularity?: number | null
+          tags?: string[] | null
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          description?: string
+          display_name?: string
+          file_count?: number | null
+          id?: string
+          name?: string
+          popularity?: number | null
+          tags?: string[] | null
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string

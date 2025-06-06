@@ -43,14 +43,14 @@ const NavigationHeader: React.FC<NavigationHeaderProps> = ({
   }
 
   return (
-    <div className="mb-6">
-      {/* Back Button */}
-      <div className="flex items-center gap-4 mb-4">
+    <div className="mb-6 space-y-4">
+      {/* Navigation Buttons - Consistent styling with proper contrast */}
+      <div className="flex items-center gap-3">
         {currentView === 'conversations' && (
           <Button
             variant="outline"
             onClick={onBackToProjects}
-            className="flex items-center gap-2 hover:bg-blue-50 transition-colors"
+            className="nav-link flex items-center gap-2 border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200"
           >
             <ArrowLeft className="h-4 w-4" />
             返回项目列表
@@ -58,11 +58,11 @@ const NavigationHeader: React.FC<NavigationHeaderProps> = ({
         )}
         
         {currentView === 'messages' && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Button
               variant="outline"
               onClick={onBackToConversations}
-              className="flex items-center gap-2 hover:bg-blue-50 transition-colors"
+              className="nav-link flex items-center gap-2 border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200"
             >
               <ArrowLeft className="h-4 w-4" />
               返回对话列表
@@ -71,7 +71,7 @@ const NavigationHeader: React.FC<NavigationHeaderProps> = ({
               variant="ghost"
               size="sm"
               onClick={onBackToProjects}
-              className="text-muted-foreground hover:text-primary"
+              className="text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-200 px-3 py-1.5"
             >
               返回项目列表
             </Button>
@@ -79,24 +79,29 @@ const NavigationHeader: React.FC<NavigationHeaderProps> = ({
         )}
       </div>
 
-      {/* Enhanced Breadcrumb */}
-      <div className="flex items-center space-x-2 text-sm bg-muted/30 px-4 py-2 rounded-lg border">
+      {/* Enhanced Breadcrumb with proper contrast and accessibility */}
+      <div className="flex items-center space-x-2 text-sm bg-card border border-border px-4 py-3 rounded-lg shadow-sm">
         <button 
           onClick={onBackToProjects}
-          className="text-blue-600 hover:text-blue-800 hover:underline transition-colors font-medium"
+          className="text-primary hover:text-primary/80 hover:underline transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm"
+          aria-label="返回项目列表"
         >
           项目
         </button>
         
         {selectedProject && (
           <>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
             {currentView === 'conversations' ? (
-              <span className="text-foreground font-medium">{selectedProject.name}</span>
+              <span className="text-foreground font-medium truncate" title={selectedProject.name}>
+                {selectedProject.name}
+              </span>
             ) : (
               <button 
                 onClick={onBackToConversations}
-                className="text-blue-600 hover:text-blue-800 hover:underline transition-colors font-medium"
+                className="text-primary hover:text-primary/80 hover:underline transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-sm truncate"
+                title={selectedProject.name}
+                aria-label={`返回到项目 ${selectedProject.name} 的对话列表`}
               >
                 {selectedProject.name}
               </button>
@@ -106,8 +111,8 @@ const NavigationHeader: React.FC<NavigationHeaderProps> = ({
         
         {selectedConversation && (
           <>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            <span className="text-foreground font-medium">
+            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+            <span className="text-foreground font-medium truncate" title={selectedConversation.name || '未命名对话'}>
               {selectedConversation.name || '未命名对话'}
             </span>
           </>

@@ -276,12 +276,13 @@ const Index = () => {
     };
   };
 
+  // Enhanced loading state with better styling
   if (loading && !allProjects.length) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-muted-foreground">加载中...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg text-foreground font-medium">加载中...</p>
         </div>
       </div>
     );
@@ -289,21 +290,21 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+      <div className="container mx-auto section-spacing">
+        {/* Enhanced Header with consistent styling */}
         <div className="mb-8">
-          <div className="flex justify-between items-start mb-4">
-            <div>
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-4">
+            <div className="flex-1">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
                 AI编程助手聊天记录管理平台
               </h1>
-              <p className="text-muted-foreground text-lg">
+              <p className="text-muted-foreground text-lg leading-relaxed">
                 统一管理Cursor、AugmentCode、Cline等AI编程工具的对话历史
               </p>
             </div>
             <Button 
               onClick={() => navigate('/migration')}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-purple-600 hover:bg-purple-700 text-white transition-colors duration-200 focus:ring-purple-500 button-spacing"
             >
               <Database className="h-4 w-4 mr-2" />
               数据库迁移
@@ -311,7 +312,7 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Navigation Header */}
+        {/* Navigation Header with enhanced styling */}
         <NavigationHeader
           currentView={currentView}
           selectedProject={selectedProject}
@@ -334,13 +335,13 @@ const Index = () => {
           <StatsCards stats={stats} allProjects={allProjects} />
         )}
 
-        {/* Main Content */}
+        {/* Main Content with enhanced styling */}
         <div className="space-y-6">
           {currentView === 'projects' && (
-            <Card className="shadow-sm">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">
+            <Card className="ui-card">
+              <CardHeader className="card-spacing">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <CardTitle className="text-xl text-foreground">
                     项目列表
                     {searchQuery && (
                       <span className="text-sm font-normal text-muted-foreground ml-2">
@@ -348,16 +349,16 @@ const Index = () => {
                       </span>
                     )}
                   </CardTitle>
-                  <Badge variant="secondary" className="px-3 py-1">
+                  <Badge variant="secondary" className="ui-badge bg-secondary text-secondary-foreground px-3 py-1 self-start sm:self-center">
                     {filteredProjects.length} 个项目
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="card-spacing">
                 {loading ? (
                   <div className="flex items-center justify-center p-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
-                    加载中...
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
+                    <span className="text-foreground">加载中...</span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -371,10 +372,11 @@ const Index = () => {
                   </div>
                 )}
                 
+                {/* Enhanced empty state */}
                 {!loading && filteredProjects.length === 0 && (
                   <div className="text-center py-12">
                     <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">
+                    <h3 className="text-lg font-medium text-foreground mb-2">
                       {searchQuery ? '未找到匹配的项目' : '暂无项目'}
                     </h3>
                     <p className="text-muted-foreground">
@@ -390,15 +392,15 @@ const Index = () => {
           )}
 
           {currentView === 'conversations' && selectedProject && (
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">{selectedProject.name} - 对话列表</CardTitle>
+            <Card className="ui-card">
+              <CardHeader className="card-spacing">
+                <CardTitle className="text-xl text-foreground">{selectedProject.name} - 对话列表</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="card-spacing">
                 {loading ? (
                   <div className="flex items-center justify-center p-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
-                    加载中...
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
+                    <span className="text-foreground">加载中...</span>
                   </div>
                 ) : (
                   <div className="space-y-4">

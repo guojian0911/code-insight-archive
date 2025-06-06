@@ -20,11 +20,11 @@ interface ConversationCardProps {
 
 const ConversationCard: React.FC<ConversationCardProps> = ({ conversation, onSelect }) => {
   const formatDate = (dateString: string) => {
-    // 直接解析数据库时间字符串，不进行时区转换
-    const date = dateString.replace(' ', 'T'); // 转换为ISO格式
+    // Direct parsing of database time string without timezone conversion
+    const date = dateString.replace(' ', 'T'); // Convert to ISO format
     const parsedDate = new Date(date);
     
-    // 手动格式化，避免时区转换
+    // Manual formatting to avoid timezone conversion
     const year = parsedDate.getUTCFullYear();
     const month = (parsedDate.getUTCMonth() + 1).toString().padStart(2, '0');
     const day = parsedDate.getUTCDate().toString().padStart(2, '0');
@@ -37,22 +37,44 @@ const ConversationCard: React.FC<ConversationCardProps> = ({ conversation, onSel
 
   return (
     <Card 
-      key={conversation.id} 
-      className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-400"
+      className="ui-card cursor-pointer border-l-4 border-l-blue-400 group transform hover:scale-[1.02] transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
       onClick={() => onSelect(conversation.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(conversation.id);
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`选择对话 ${conversation.name || '未命名对话'}`}
     >
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-medium">{conversation.name || '未命名对话'}</h3>
-            <p className="text-sm text-muted-foreground">
-              消息数量: {conversation.message_count}
+      <CardContent className="card-spacing">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            {/* Conversation title with proper contrast */}
+            <h3 className="font-medium text-foreground text-base mb-2 truncate group-hover:text-primary transition-colors duration-200">
+              {conversation.name || '未命名对话'}
+            </h3>
+            
+            {/* Message count with enhanced styling */}
+            <p className="text-sm text-muted-foreground mb-2">
+              <span className="font-medium text-foreground">消息数量:</span> {conversation.message_count}
             </p>
+            
+            {/* Creation date with consistent styling */}
             <p className="text-xs text-muted-foreground">
-              创建时间: {formatDate(conversation.created_at)}
+              <span className="font-medium text-foreground">创建时间:</span> {formatDate(conversation.created_at)}
             </p>
           </div>
-          <Badge variant="outline">{conversation.message_count} 条消息</Badge>
+          
+          {/* Message count badge with improved styling */}
+          <Badge 
+            variant="outline" 
+            className="ui-badge bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors duration-200 flex-shrink-0"
+          >
+            {conversation.message_count} 条消息
+          </Badge>
         </div>
       </CardContent>
     </Card>

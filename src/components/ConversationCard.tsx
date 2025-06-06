@@ -49,8 +49,8 @@ const ConversationCard: React.FC<ConversationCardProps> = ({ conversation, onSel
       role="button"
       aria-label={`选择对话 ${conversation.name || '未命名对话'}`}
     >
-      <CardContent className="card-spacing">
-        <div className="flex items-center justify-between gap-4">
+      <CardContent className="card-spacing flex items-center justify-center min-h-[120px]">
+        <div className="flex items-center justify-between gap-4 w-full">
           <div className="flex-1 min-w-0">
             {/* Conversation title with proper contrast */}
             <h3 className="font-medium text-foreground text-base mb-2 truncate group-hover:text-primary transition-colors duration-200">
